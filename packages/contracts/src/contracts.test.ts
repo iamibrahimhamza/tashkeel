@@ -43,3 +43,9 @@ describe("contracts", () => {
     expect(PayoutDetails.safeParse({ method: "AL_BARAKA", accountHolder: "x", accountNumber: "1" }).success).toBe(false);
   });
 });
+
+describe("courses block", () => {
+  it("is a first-class block with an Arabic default heading", () => {
+    expect(PageBlocks.parse([{ id: "c", type: "courses", props: {} }])[0]).toMatchObject({ props: { heading: "الدورات" } });
+  });
+});

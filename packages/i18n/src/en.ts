@@ -118,7 +118,7 @@ export const en: Widen<Dictionary> = {
     failed: "Something went wrong, please try again",
   },
   dash: {
-    nav: { overview: "Overview", sales: "Sales", clients: "Clients", bookings: "Bookings", products: "Products & courses", payouts: "Earnings & payouts", billing: "Plan", viewPage: "View my page", admin: "Admin" },
+    nav: { overview: "Overview", home: "My page", sales: "Sales", clients: "Clients", bookings: "Bookings", products: "Products & courses", payouts: "Earnings & payouts", billing: "Plan", viewPage: "View my page", admin: "Admin" },
     balance: { pending: "Pending", pendingHint: "Earnings inside the hold window", available: "Available", inTransit: "In transit", nextRelease: "Becomes available" },
     overview: { title: "Overview", recentSales: "Recent sales", seeAll: "See all" },
     empty: {

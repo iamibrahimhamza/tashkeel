@@ -1,11 +1,15 @@
 import { Controller, Get, Header, HttpCode, Param, Patch, Post, Put } from "@nestjs/common";
 import {
+  PublishInput,
   SaveDraftInput,
   UpdateSiteInput,
+  type PageVersionSummary,
+  type SiteEditorState,
   type PageBlocks,
   type PublicHome,
   type ThemeTokens,
 } from "@tashkeel/contracts";
+import { stableStringify } from "@tashkeel/core";
 import type { Prisma } from "@tashkeel/db";
 import {
   CurrentUser,
@@ -87,28 +91,35 @@ export class SitesController {
     };
   }
 
+  /** Everything the builder needs: draft blocks, theme, SEO, and the theme catalogue. */
   @RequirePermission("site:edit")
   @Get("workspaces/:workspaceId/site")
-  async getSite(@CurrentWorkspace() ctx: WorkspaceContext) {
-    const site = await this.prisma.db.site.findUnique({
-      where: { workspaceId: ctx.id },
-      include: { pages: { where: { path: "/" }, include: { versions: { orderBy: { createdAt: "desc" }, take: 1 } } } },
-    });
-    if (!site) throw Errors.notFound("Site");
-    const page = site.pages[0];
-    const draft = page?.versions[0];
+  async getSite(@CurrentWorkspace() ctx: WorkspaceContext): Promise<SiteEditorState> {
+    const db = this.prisma.db;
+    const [ws, themes] = await Promise.all([
+      db.workspace.findUniqueOrThrow({
+        where: { id: ctx.id },
+        include: { site: { include: { pages: { where: { path: "/" }, include: { versions: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1 } } } } } },
+      }),
+      db.theme.findMany({ orderBy: { isDefault: "desc" } }),
+    ]);
+    const site = ws.site;
+    const page = site?.pages[0];
+    if (!site || !page) throw Errors.notFound("Site");
+    const draft = page.versions[0];
     return {
+      workspace: { id: ws.id, slug: ws.slug, name: ws.name, timezone: ws.timezone },
       themeId: site.themeId,
-      themeOverrides: site.themeOverrides,
-      seo: site.seo,
-      page: page && {
+      themeOverrides: site.themeOverrides as Record<string, unknown>,
+      seo: site.seo as SiteEditorState["seo"],
+      page: {
         id: page.id,
-        status: page.status,
         publishedVersionId: page.publishedVersionId,
         draftVersionId: draft?.id ?? null,
         hasUnpublishedChanges: !!draft && draft.id !== page.publishedVersionId,
         blocks: (draft?.blocks ?? []) as PageBlocks,
       },
+      themes: themes.map((t) => ({ id: t.id, name: t.name, nameAr: t.nameAr, tokens: t.tokens as ThemeTokens })),
     };
   }
 
@@ -130,7 +141,10 @@ export class SitesController {
     return { themeId: site.themeId, seo: site.seo, themeOverrides: site.themeOverrides };
   }
 
-  /** Each save is a new immutable version; the public page keeps serving the published one. */
+  /**
+   * Each save is a new immutable PageVersion; the public page keeps serving the published one.
+   * Saving blocks identical to the latest version is a no-op, so autosave never bloats history.
+   */
   @RequirePermission("site:edit")
   @Put("workspaces/:workspaceId/pages/home/draft")
   async saveDraft(
@@ -139,22 +153,76 @@ export class SitesController {
     @ValidBody(SaveDraftInput) input: SaveDraftInput,
   ) {
     const page = await this.homePage(ctx.id);
+    const latest = await this.prisma.db.pageVersion.findFirst({ where: { pageId: page.id }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
+    if (latest && stableStringify(latest.blocks) === stableStringify(input.blocks)) {
+      return { versionId: latest.id, createdAt: latest.createdAt.toISOString(), unchanged: true };
+    }
     const v = await this.prisma.db.pageVersion.create({ data: { pageId: page.id, blocks: input.blocks, createdById: user.id } });
-    return { versionId: v.id, createdAt: v.createdAt.toISOString() };
+    return { versionId: v.id, createdAt: v.createdAt.toISOString(), unchanged: false };
   }
 
+  /**
+   * Publishing is a pointer swap: Page.publishedVersionId moves to an existing immutable
+   * version (the latest draft by default, or any earlier one to roll back). Nothing is copied.
+   */
   @RequirePermission("site:publish")
   @HttpCode(200)
   @Post("workspaces/:workspaceId/pages/home/publish")
-  async publish(@CurrentUser() user: AuthUser, @CurrentWorkspace() ctx: WorkspaceContext) {
+  async publish(@CurrentUser() user: AuthUser, @CurrentWorkspace() ctx: WorkspaceContext, @ValidBody(PublishInput) input: PublishInput) {
     const page = await this.homePage(ctx.id);
-    const latest = await this.prisma.db.pageVersion.findFirst({ where: { pageId: page.id }, orderBy: { createdAt: "desc" } });
-    if (!latest) throw Errors.notFound("Draft");
+    const target = input.versionId
+      ? await this.prisma.db.pageVersion.findFirst({ where: { id: input.versionId, pageId: page.id } })
+      : await this.prisma.db.pageVersion.findFirst({ where: { pageId: page.id }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
+    if (!target) throw Errors.notFound("Version");
     await this.prisma.db.$transaction([
-      this.prisma.db.page.update({ where: { id: page.id }, data: { status: "PUBLISHED", publishedVersionId: latest.id } }),
-      this.prisma.db.auditLog.create({ data: { actorId: user.id, workspaceId: ctx.id, action: "page.publish", target: latest.id } }),
+      this.prisma.db.page.update({ where: { id: page.id }, data: { status: "PUBLISHED", publishedVersionId: target.id } }),
+      this.prisma.db.auditLog.create({ data: { actorId: user.id, workspaceId: ctx.id, action: input.versionId ? "page.rollback" : "page.publish", target: target.id } }),
     ]);
-    return { publishedVersionId: latest.id };
+    const ws = await this.prisma.db.workspace.findUniqueOrThrow({ where: { id: ctx.id }, select: { slug: true } });
+    return { publishedVersionId: target.id, slug: ws.slug };
+  }
+
+  @RequirePermission("site:edit")
+  @Get("workspaces/:workspaceId/pages/home/versions")
+  async versions(@CurrentWorkspace() ctx: WorkspaceContext): Promise<{ data: PageVersionSummary[] }> {
+    const page = await this.prisma.db.page.findFirst({ where: { path: "/", site: { workspaceId: ctx.id } }, select: { id: true, publishedVersionId: true } });
+    if (!page) throw Errors.notFound("Page");
+    const rows = await this.prisma.db.pageVersion.findMany({
+      where: { pageId: page.id },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 30,
+      include: { createdBy: { select: { name: true, email: true } } },
+    });
+    return {
+      data: rows.map((v) => ({
+        id: v.id,
+        createdAt: v.createdAt.toISOString(),
+        createdBy: v.createdBy.name ?? v.createdBy.email,
+        isPublished: v.id === page.publishedVersionId,
+        blockCount: Array.isArray(v.blocks) ? v.blocks.length : 0,
+      })),
+    };
+  }
+
+  @RequirePermission("site:edit")
+  @Get("workspaces/:workspaceId/pages/home/versions/:versionId")
+  async version(@CurrentWorkspace() ctx: WorkspaceContext, @Param("versionId") versionId: string) {
+    const v = await this.prisma.db.pageVersion.findFirst({ where: { id: versionId, page: { path: "/", site: { workspaceId: ctx.id } } } });
+    if (!v) throw Errors.notFound("Version");
+    return { id: v.id, createdAt: v.createdAt.toISOString(), blocks: v.blocks as PageBlocks };
+  }
+
+  /** Published homes, for the platform sitemap. */
+  @Public()
+  @Header("Cache-Control", "public, max-age=300")
+  @Get("public/homes")
+  async publishedHomes() {
+    const rows = await this.prisma.db.page.findMany({
+      where: { path: "/", status: "PUBLISHED", publishedVersionId: { not: null } },
+      select: { updatedAt: true, site: { select: { workspace: { select: { slug: true } } } } },
+      take: 50_000,
+    });
+    return { data: rows.map((r) => ({ slug: r.site.workspace.slug, updatedAt: r.updatedAt.toISOString() })) };
   }
 
   @Public()

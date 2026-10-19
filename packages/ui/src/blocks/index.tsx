@@ -1,11 +1,13 @@
 import type { Block, PublicHome } from "@tashkeel/contracts";
-import { formatMoney, intlLocale } from "@tashkeel/core";
+import { formatMoney, intlLocale } from "@tashkeel/core/money";
 import type { CSSProperties, ReactNode } from "react";
 import { Markdown } from "../markdown";
 import { ButtonLink, Container, cx, themeStyle } from "../primitives";
 
-type Ctx = {
+export type Ctx = {
   home: PublicHome;
+  /** Builder preview: empty data sections show a placeholder instead of disappearing. */
+  editing?: boolean;
   /** Builds links inside the expert's home, e.g. `/ibrahim/book/<serviceId>`. */
   href: (path: string) => string;
   locale: "ar" | "en";
@@ -30,6 +32,17 @@ function Section({ id, children, tone = "paper", className }: { id?: string; chi
   );
 }
 
+/** Shown only in the builder, where an empty section must still be visible and selectable. */
+function EmptySlot({ ctx, heading, ar, en }: { ctx: Ctx; heading: string; ar: string; en: string }) {
+  if (!ctx.editing) return null;
+  return (
+    <Section>
+      <Heading>{heading}</Heading>
+      <div className="rounded-[var(--radius)] border border-dashed border-accent/50 px-6 py-10 text-center text-sm text-muted">{ctx.locale === "ar" ? ar : en}</div>
+    </Section>
+  );
+}
+
 function Heading({ children }: { children: ReactNode }) {
   return (
     <div className="mb-10 flex items-center gap-4">
@@ -43,29 +56,52 @@ function Heading({ children }: { children: ReactNode }) {
 
 function Hero({ b, ctx }: { b: Extract<Block, { type: "hero" }>; ctx: Ctx }) {
   const { eyebrow, title, subtitle, cta, layout } = b.props;
-  const initials = ctx.home.workspace.name.replace(/^د\.\s*/, "").trim().charAt(0);
-  const centered = layout === "centered";
+  const initial = ctx.home.workspace.name.replace(/^د\.\s*/, "").trim().charAt(0);
+  const centered = layout !== "split";
+  const text = (
+    <div className={cx(centered && "mx-auto max-w-3xl text-center")}>
+      {eyebrow && <p className="eyebrow mb-5">{eyebrow}</p>}
+      <h1 className="text-4xl font-semibold leading-[1.3] sm:text-5xl lg:text-[3.4rem]" style={displayFont}>
+        {title}
+      </h1>
+      {subtitle && <p className="mt-6 max-w-2xl text-lg leading-9 text-muted" style={centered ? { marginInline: "auto" } : undefined}>{subtitle}</p>}
+      {cta && (
+        <div className={cx("mt-9 flex flex-wrap gap-3", centered && "justify-center")}>
+          <ButtonLink href={cta.href}>{cta.label}</ButtonLink>
+        </div>
+      )}
+    </div>
+  );
+
+  // Portrait: an editorial stack — a tall arched frame above a centered title.
+  if (layout === "portrait") {
+    return (
+      <section className="relative overflow-hidden pb-16 pt-12 sm:pb-24 sm:pt-16">
+        <Container className="flex flex-col items-center gap-10">
+          <div className="relative w-44 sm:w-52" aria-hidden="true">
+            <div className="absolute inset-0 translate-y-3 rounded-t-full border border-accent/50" />
+            <div className="relative flex aspect-[3/4] items-center justify-center overflow-hidden rounded-t-full bg-sand">
+              <span className="select-none text-[6.5rem] leading-none text-accent/35" style={displayFont}>{initial}</span>
+            </div>
+            <span className="mx-auto mt-6 block h-px w-12 bg-accent" />
+          </div>
+          {text}
+        </Container>
+      </section>
+    );
+  }
+
+  // Split: text and a framed card side by side. Centered: text only.
   return (
     <section className="relative overflow-hidden pb-16 pt-14 sm:pb-24 sm:pt-20">
       <Container className={cx("grid items-center gap-12", !centered && "lg:grid-cols-[1.35fr_1fr]")}>
-        <div className={cx(centered && "mx-auto max-w-3xl text-center")}>
-          {eyebrow && <p className="eyebrow mb-5">{eyebrow}</p>}
-          <h1 className="text-4xl font-semibold leading-[1.3] sm:text-5xl lg:text-[3.4rem]" style={displayFont}>
-            {title}
-          </h1>
-          {subtitle && <p className="mt-6 max-w-2xl text-lg leading-9 text-muted" style={centered ? { marginInline: "auto" } : undefined}>{subtitle}</p>}
-          {cta && (
-            <div className={cx("mt-9 flex flex-wrap gap-3", centered && "justify-center")}>
-              <ButtonLink href={cta.href}>{cta.label}</ButtonLink>
-            </div>
-          )}
-        </div>
+        {text}
         {!centered && (
-          <div className="relative mx-auto aspect-[4/5] w-full max-w-sm">
+          <div className="relative mx-auto aspect-[4/5] w-full max-w-sm" aria-hidden="true">
             <div className="absolute inset-0 translate-x-4 translate-y-4 rounded-[var(--radius)] border border-accent/50" />
             <div className="relative flex h-full w-full items-end justify-start overflow-hidden rounded-[var(--radius)] bg-sand p-7">
-              <span className="absolute inset-0 flex select-none items-center justify-center pb-10 text-[10rem] leading-none text-accent/30" style={displayFont} aria-hidden="true">
-                {initials}
+              <span className="absolute inset-0 flex select-none items-center justify-center pb-10 text-[10rem] leading-none text-accent/30" style={displayFont}>
+                {initial}
               </span>
               <div>
                 <p className="text-sm text-muted">{ctx.home.workspace.name}</p>
@@ -105,7 +141,7 @@ function Bio({ b }: { b: Extract<Block, { type: "bio" }> }) {
 function Services({ b, ctx }: { b: Extract<Block, { type: "services" }>; ctx: Ctx }) {
   const ids = b.props.serviceIds;
   const list = ids ? ctx.home.services.filter((s) => ids.includes(s.id)) : ctx.home.services;
-  if (!list.length) return null;
+  if (!list.length) return <EmptySlot ctx={ctx} heading={b.props.heading} ar="يظهر هذا القسم لزوّار صفحتك حين تضيف خدمة استشارية." en="This section appears to visitors once you add a consultation service." />;
   return (
     <Section id="services">
       <Heading>{b.props.heading}</Heading>
@@ -135,10 +171,21 @@ function Products({ b, ctx }: { b: Extract<Block, { type: "products" }>; ctx: Ct
   if (b.props.kind === "files") list = list.filter((p) => p.type === "FILE");
   if (b.props.kind === "courses") list = list.filter((p) => p.type === "COURSE");
   if (b.props.productIds) list = list.filter((p) => b.props.productIds!.includes(p.id));
-  if (!list.length) return null;
+  if (!list.length) return <EmptySlot ctx={ctx} heading={b.props.heading} ar="يظهر هذا القسم حين تنشر منتجاً رقمياً." en="This section appears once you publish a digital product." />;
+  return <ProductGrid heading={b.props.heading} list={list} ctx={ctx} />;
+}
+
+function Courses({ b, ctx }: { b: Extract<Block, { type: "courses" }>; ctx: Ctx }) {
+  let list = ctx.home.products.filter((p) => p.type === "COURSE");
+  if (b.props.productIds) list = list.filter((p) => b.props.productIds!.includes(p.id));
+  if (!list.length) return <EmptySlot ctx={ctx} heading={b.props.heading} ar="يظهر هذا القسم حين تنشر دورة." en="This section appears once you publish a course." />;
+  return <ProductGrid heading={b.props.heading} list={list} ctx={ctx} />;
+}
+
+function ProductGrid({ heading, list, ctx }: { heading: string; list: PublicHome["products"]; ctx: Ctx }) {
   return (
     <Section tone="sand">
-      <Heading>{b.props.heading}</Heading>
+      <Heading>{heading}</Heading>
       <div className="grid gap-6 md:grid-cols-2">
         {list.map((p) => (
           <a key={p.id} href={ctx.href(`/p/${p.slug}`)} className="group grid grid-cols-[96px_1fr] gap-6 rounded-[var(--radius)] bg-paper p-6 transition hover:shadow-[0_10px_40px_-20px_rgba(25,34,30,.35)] sm:grid-cols-[120px_1fr]">
@@ -159,7 +206,7 @@ function Products({ b, ctx }: { b: Extract<Block, { type: "products" }>; ctx: Ct
 
 function Posts({ b, ctx }: { b: Extract<Block, { type: "posts" }>; ctx: Ctx }) {
   const list = ctx.home.posts.slice(0, b.props.limit);
-  if (!list.length) return null;
+  if (!list.length) return <EmptySlot ctx={ctx} heading={b.props.heading} ar="يظهر هذا القسم حين تنشر مقالك الأول." en="This section appears once you publish your first article." />;
   const date = new Intl.DateTimeFormat(intlLocale(ctx.locale), { day: "numeric", month: "long", year: "numeric" });
   return (
     <Section>
@@ -181,8 +228,8 @@ function Posts({ b, ctx }: { b: Extract<Block, { type: "posts" }>; ctx: Ctx }) {
   );
 }
 
-function Testimonials({ b }: { b: Extract<Block, { type: "testimonials" }> }) {
-  if (!b.props.items.length) return null;
+function Testimonials({ b, ctx }: { b: Extract<Block, { type: "testimonials" }>; ctx: Ctx }) {
+  if (!b.props.items.length) return <EmptySlot ctx={ctx} heading={b.props.heading} ar="أضف شهادات حقيقية من عملائك ليظهر هذا القسم." en="Add real testimonials from your clients for this section to appear." />;
   return (
     <Section tone="sand">
       <Heading>{b.props.heading}</Heading>
@@ -202,7 +249,15 @@ function Testimonials({ b }: { b: Extract<Block, { type: "testimonials" }> }) {
   );
 }
 
+/**
+ * Subscriber sign-up ships with the editorial module. Until then the form is shown in a calm,
+ * disabled "coming soon" state so no visitor ever submits into a missing endpoint.
+ */
+const NEWSLETTER_ACCEPTS_SIGNUPS = false;
+
 function Newsletter({ b, ctx }: { b: Extract<Block, { type: "newsletter" }>; ctx: Ctx }) {
+  const ar = ctx.locale === "ar";
+  const live = NEWSLETTER_ACCEPTS_SIGNUPS;
   return (
     <section className="bg-forest py-16 text-[#FAF8F6] sm:py-20">
       <Container className="grid items-center gap-8 lg:grid-cols-2">
@@ -210,17 +265,20 @@ function Newsletter({ b, ctx }: { b: Extract<Block, { type: "newsletter" }>; ctx
           <h2 className="text-3xl font-semibold" style={displayFont}>{b.props.heading}</h2>
           {b.props.body && <p className="mt-3 text-[#FAF8F6]/70">{b.props.body}</p>}
         </div>
-        <form action={ctx.href("/subscribe")} method="post" className="flex flex-col gap-3 sm:flex-row">
-          <label className="sr-only" htmlFor="nl-email">{ctx.locale === "ar" ? "البريد الإلكتروني" : "Email"}</label>
-          <input id="nl-email" name="email" type="email" required dir="ltr" placeholder="you@example.com" className="min-w-0 flex-1 rounded-full border border-[#FAF8F6]/25 bg-transparent px-5 py-3 text-end placeholder:text-[#FAF8F6]/40 focus:border-gold-light focus:outline-none" />
-          <button type="submit" className="rounded-full bg-gold px-7 py-3 font-heading font-medium text-forest">{b.props.buttonLabel}</button>
+        <form action={live ? ctx.href("/subscribe") : undefined} method="post" aria-disabled={!live} className="flex flex-col gap-3 sm:flex-row">
+          <label className="sr-only" htmlFor="nl-email">{ar ? "البريد الإلكتروني" : "Email"}</label>
+          <input id="nl-email" name="email" type="email" required dir="ltr" disabled={!live} placeholder="you@example.com" className="min-w-0 flex-1 rounded-full border border-[#FAF8F6]/25 bg-transparent px-5 py-3 text-end placeholder:text-[#FAF8F6]/40 focus:border-gold-light focus:outline-none disabled:opacity-50" />
+          <button type="submit" disabled={!live} className="rounded-full bg-gold px-7 py-3 font-heading font-medium text-forest disabled:cursor-not-allowed disabled:bg-[#FAF8F6]/10 disabled:text-gold-light">
+            {live ? b.props.buttonLabel : ar ? "قريباً" : "Coming soon"}
+          </button>
         </form>
       </Container>
     </section>
   );
 }
 
-function Links({ b }: { b: Extract<Block, { type: "links" }> }) {
+function Links({ b, ctx }: { b: Extract<Block, { type: "links" }>; ctx: Ctx }) {
+  if (!b.props.items.length) return <EmptySlot ctx={ctx} heading={b.props.heading ?? (ctx.locale === "ar" ? "روابط" : "Links")} ar="أضف روابطك ليظهر هذا القسم." en="Add your links for this section to appear." />;
   return (
     <Section>
       {b.props.heading && <Heading>{b.props.heading}</Heading>}
@@ -238,7 +296,8 @@ function Links({ b }: { b: Extract<Block, { type: "links" }> }) {
   );
 }
 
-function Faq({ b }: { b: Extract<Block, { type: "faq" }> }) {
+function Faq({ b, ctx }: { b: Extract<Block, { type: "faq" }>; ctx: Ctx }) {
+  if (!b.props.items.length) return <EmptySlot ctx={ctx} heading={b.props.heading} ar="أضف سؤالاً وجوابه ليظهر هذا القسم." en="Add a question and answer for this section to appear." />;
   return (
     <Section>
       <div className="grid gap-10 lg:grid-cols-[1fr_2fr]">
@@ -274,11 +333,12 @@ export function BlockView({ block, ctx }: { block: Block; ctx: Ctx }) {
     case "bio": return <Bio b={block} />;
     case "services": return <Services b={block} ctx={ctx} />;
     case "products": return <Products b={block} ctx={ctx} />;
+    case "courses": return <Courses b={block} ctx={ctx} />;
     case "posts": return <Posts b={block} ctx={ctx} />;
-    case "testimonials": return <Testimonials b={block} />;
+    case "testimonials": return <Testimonials b={block} ctx={ctx} />;
     case "newsletter": return <Newsletter b={block} ctx={ctx} />;
-    case "links": return <Links b={block} />;
-    case "faq": return <Faq b={block} />;
+    case "links": return <Links b={block} ctx={ctx} />;
+    case "faq": return <Faq b={block} ctx={ctx} />;
     case "richText": return <RichText b={block} />;
   }
 }

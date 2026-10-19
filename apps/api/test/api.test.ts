@@ -111,6 +111,37 @@ describe("digital home", () => {
     expect(after.body.blocks[0].props).toEqual({ title: "عنوان جديد", layout: "split" });
   });
 
+  it("keeps immutable versions, skips no-op saves, and rolls back by pointer swap", async () => {
+    const base = `/v1/workspaces/${workspaceId}/pages/home`;
+    const v1 = (await h.http().get(`${base}/versions`).set(auth(ownerToken))).body.data;
+    const published = v1.find((v: { isPublished: boolean }) => v.isPublished);
+    expect(published).toBeTruthy();
+
+    const blocks = [{ id: "c", type: "courses", props: {} }, { id: "hero", type: "hero", props: { title: "نسخة ثالثة" } }];
+    const first = await h.http().put(`${base}/draft`).set(auth(ownerToken)).send({ blocks });
+    const same = await h.http().put(`${base}/draft`).set(auth(ownerToken)).send({ blocks });
+    expect(same.body).toMatchObject({ versionId: first.body.versionId, unchanged: true });
+
+    const editor = await h.http().get(`/v1/workspaces/${workspaceId}/site`).set(auth(ownerToken));
+    expect(editor.body.page).toMatchObject({ hasUnpublishedChanges: true, draftVersionId: first.body.versionId });
+    expect(editor.body.page.blocks[0]).toMatchObject({ type: "courses", props: { heading: "الدورات" } });
+    expect(editor.body.themes.length).toBeGreaterThan(0);
+
+    await h.http().post(`${base}/publish`).set(auth(ownerToken)).send({});
+    expect((await h.http().get("/v1/public/homes/sara")).body.blocks[1].props.title).toBe("نسخة ثالثة");
+
+    // Roll back to the previously published version; the newer version still exists.
+    const rb = await h.http().post(`${base}/publish`).set(auth(ownerToken)).send({ versionId: published.id });
+    expect(rb.body).toEqual({ publishedVersionId: published.id, slug: "sara" });
+    expect((await h.http().get("/v1/public/homes/sara")).body.blocks[0].props.title).toBe("عنوان جديد");
+    const old = await h.http().get(`${base}/versions/${first.body.versionId}`).set(auth(ownerToken));
+    expect(old.body.blocks).toHaveLength(2);
+
+    expect((await h.http().post(`${base}/publish`).set(auth(ownerToken)).send({ versionId: "nope" })).status).toBe(404);
+    const list = (await h.http().get("/v1/public/homes")).body.data;
+    expect(list.map((x: { slug: string }) => x.slug)).toContain("sara");
+  });
+
   it("rejects unknown block types", async () => {
     const res = await h.http().put(`/v1/workspaces/${workspaceId}/pages/home/draft`).set(auth(ownerToken)).send({ blocks: [{ id: "x", type: "script", props: {} }] });
     expect(res.status).toBe(422);

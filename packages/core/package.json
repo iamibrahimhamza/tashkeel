@@ -16,5 +16,17 @@
     "fast-check": "4.1.1",
     "typescript": "5.8.3",
     "vitest": "3.2.4"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./src/index.ts",
+      "require": "./dist/index.js"
+    },
+    "./money": {
+      "types": "./dist/money.d.ts",
+      "import": "./src/money.ts",
+      "require": "./dist/money.js"
+    }
   }
 }

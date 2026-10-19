@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  transpilePackages: ["@tashkeel/ui", "@tashkeel/i18n"],
+  transpilePackages: ["@tashkeel/ui", "@tashkeel/i18n", "@tashkeel/contracts", "@tashkeel/core"],
   async headers() {
     return [
       {

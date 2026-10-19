@@ -2,12 +2,13 @@ import { formatMoney, intlLocale } from "@tashkeel/core";
 import type { Dictionary } from "@tashkeel/i18n";
 import { cx, Logo } from "@tashkeel/ui";
 import type { ReactNode } from "react";
-import { logout } from "@/app/(auth)/actions";
+import { logout } from "@/app/(main)/(auth)/actions";
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; active?: boolean };
 
 const ICONS = {
   overview: "M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z",
+  home: "M4 11 12 4l8 7v9h-5v-6H9v6H4z",
   sales: "M4 19V9M10 19V5M16 19v-7M22 19H2",
   clients: "M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6M22 19v-1a4 4 0 0 0-3-3.9M16 4.1a3 3 0 0 1 0 5.8",
   bookings: "M5 6h14v13H5zM5 10h14M9 3v4M15 3v4",

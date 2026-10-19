@@ -32,7 +32,7 @@ export const Id = z.string().min(1).max(64);
 /** Reserved slugs cannot be claimed by experts (they collide with app routes). */
 export const RESERVED_SLUGS = new Set([
   "admin", "api", "app", "auth", "dashboard", "learn", "login", "logout", "signup", "pricing",
-  "features", "blog", "help", "support", "terms", "privacy", "settings", "checkout", "pay",
+  "features", "blog", "help", "support", "terms", "privacy", "settings", "checkout", "pay", "preview",
   "static", "_next", "assets", "www", "en", "ar", "tashkeel",
 ]);
 

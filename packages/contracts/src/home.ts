@@ -72,6 +72,14 @@ export const ProductsBlock = BlockBase.extend({
   }),
 });
 
+export const CoursesBlock = BlockBase.extend({
+  type: z.literal("courses"),
+  props: z.object({
+    heading: Text(80).default("الدورات"),
+    productIds: z.array(z.string()).max(24).optional(), // undefined = all published courses
+  }),
+});
+
 export const PostsBlock = BlockBase.extend({
   type: z.literal("posts"),
   props: z.object({
@@ -125,6 +133,7 @@ export const Block = z.discriminatedUnion("type", [
   BioBlock,
   ServicesBlock,
   ProductsBlock,
+  CoursesBlock,
   PostsBlock,
   TestimonialsBlock,
   NewsletterBlock,
@@ -153,7 +162,8 @@ export function defaultHomeBlocks(name: string): PageBlocks {
   return [
     { id: "hero", type: "hero", props: { title: name, layout: "centered" } },
     { id: "services", type: "services", props: { heading: "الاستشارات" } },
-    { id: "products", type: "products", props: { heading: "المنتجات الرقمية", kind: "all" } },
+    { id: "products", type: "products", props: { heading: "المنتجات الرقمية", kind: "files" } },
+    { id: "courses", type: "courses", props: { heading: "الدورات" } },
     { id: "posts", type: "posts", props: { heading: "أحدث المقالات", limit: 3 } },
     { id: "newsletter", type: "newsletter", props: { heading: "رسالتي البريدية", buttonLabel: "اشترك" } },
   ];
@@ -163,6 +173,36 @@ export function defaultHomeBlocks(name: string): PageBlocks {
 
 export const SaveDraftInput = z.object({ blocks: PageBlocks });
 export type SaveDraftInput = z.infer<typeof SaveDraftInput>;
+
+/** Publish the latest draft, or roll back/forward to a specific earlier version. */
+export const PublishInput = z.object({ versionId: z.string().min(1).max(64).optional() });
+export type PublishInput = z.infer<typeof PublishInput>;
+
+export const PageVersionSummary = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  createdBy: z.string().nullable(),
+  isPublished: z.boolean(),
+  blockCount: z.number(),
+});
+export type PageVersionSummary = z.infer<typeof PageVersionSummary>;
+
+/** Builder state: the editable draft plus everything the live preview needs. */
+export const SiteEditorState = z.object({
+  workspace: z.object({ id: z.string(), slug: z.string(), name: z.string(), timezone: z.string() }),
+  themeId: z.string(),
+  themeOverrides: z.record(z.unknown()),
+  seo: z.object({ title: z.string().optional(), description: z.string().optional(), ogImageKey: z.string().optional() }),
+  page: z.object({
+    id: z.string(),
+    publishedVersionId: z.string().nullable(),
+    draftVersionId: z.string().nullable(),
+    hasUnpublishedChanges: z.boolean(),
+    blocks: PageBlocks,
+  }),
+  themes: z.array(z.object({ id: z.string(), name: z.string(), nameAr: z.string(), tokens: ThemeTokens })),
+});
+export type SiteEditorState = z.infer<typeof SiteEditorState>;
 
 export const UpdateSiteInput = z.object({
   themeId: z.string().min(1).max(40).optional(),

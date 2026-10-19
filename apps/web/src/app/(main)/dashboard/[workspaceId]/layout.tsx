@@ -12,6 +12,7 @@ export default async function DashboardLayout({ children, params }: { children: 
   const n = t.dash.nav;
   const items: Array<Omit<NavItem, "active">> = [
     { href: base, label: n.overview, icon: "overview" },
+    { href: `${base}/home`, label: n.home, icon: "home" },
     { href: `${base}/sales`, label: n.sales, icon: "sales" },
     { href: `${base}/clients`, label: n.clients, icon: "clients" },
     { href: `${base}/bookings`, label: n.bookings, icon: "bookings" },

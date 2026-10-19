@@ -6,7 +6,7 @@ The digital home for Arab experts, consultants and knowledge creators: one link 
 
 | Path | What |
 |---|---|
-| `apps/web` | Next.js 15: marketing site, public expert homes `/[slug]`, product pages, sandbox checkout, expert dashboard, admin |
+| `apps/web` | Next.js 15: marketing site, public expert homes `/[slug]` (ISR), page builder, product pages, sandbox checkout, expert dashboard, admin |
 | `apps/api` | NestJS REST API `/v1` (auth, RBAC, idempotency, workspaces, digital home, Tashkeel Pay) plus `src/worker.ts`, the BullMQ worker that runs the same domain services without HTTP |
 | `packages/db` | Prisma schema for **all** modules, SQL integrity migrations, seed, zero-install local Postgres |
 | `packages/contracts` | Zod schemas: the API contract that both api and web use |
@@ -85,6 +85,15 @@ To test Stripe locally before going live, use test keys and forward events with 
 
 Set `QUEUE_DRIVER=bullmq` (with Redis) and run `pnpm --filter @tashkeel/api worker` to process jobs outside the API.
 
+## Digital Home (Module A)
+
+- **Builder** at `/dashboard/:workspaceId/home`: drag-and-drop sections (Hero, Bio, Services, Products, Courses, Latest posts, Testimonials, Newsletter, Links, FAQ, Custom text), an inspector form for each section, hide, duplicate and delete. The live preview runs in an iframe (`/preview/home`), so desktop and mobile layouts are real. Required fields are checked against the same `PageBlocks` schema the API uses, and Publish stays disabled until the page is valid.
+- **Versions**: every save is an immutable `PageVersion`. Saving identical blocks creates nothing new. Publishing is a pointer swap (`Page.publishedVersionId`) to the latest draft or to any earlier version (rollback from the History tab).
+- **Public home** `/[slug]` is statically generated on first visit (ISR). Publishing, theme and SEO changes call `revalidateTag("home:<slug>")`, and a 5-minute fallback covers changes made elsewhere. Metadata: title, description (taken from the SEO settings, else the hero or bio), canonical, Open Graph and Twitter tags, an OG image route, and Person JSON-LD. `sitemap.xml` lists every published home. `robots.txt` keeps private areas out of search engines.
+- **Empty sections**: visitors never see placeholders. Sections with no items (services, products, courses, posts, testimonials, links, FAQ) render nothing on the public page and show a dashed hint only inside the builder.
+- **Layouts**: the app has two root layouts. `(main)` covers marketing, auth, dashboard and admin and follows the language cookie. `(homes)` is Arabic RTL and reads no cookies, so homes can be cached.
+- The web app compiles `@tashkeel/contracts` and `@tashkeel/core` from source (`transpilePackages`). Node consumers (API, worker, seed) load their compiled `dist/`. Client code imports `@tashkeel/core/money`, never the Node-only `@tashkeel/core` root.
+
 ## Tests
 
 ```bash
@@ -109,7 +118,7 @@ pnpm test        # every package
 
 1. **Foundation**: done. Monorepo, full schema, integrity constraints, contracts, core logic, auth + RBAC, idempotency, error/validation/rate limits, design system, RTL shell, landing page, public homes.
 2. **Tashkeel Pay**: done. Gateway adapters (Sandbox and Stripe), ledger, checkout, webhooks, balances, payouts and the staff queue, plans, worker, dashboard and admin screens. Stripe Connect onboarding is not built yet.
-3. **Digital Home builder**: dashboard editor (dnd-kit), theme picker, custom domains.
+3. **Digital Home builder**: done. The block builder, versions and rollback, ISR plus on-demand revalidation, SEO, sitemap and robots. Custom domains are not built yet.
 4. **Consultations**: availability API, slots endpoint (`computeSlots`), hold → pay → confirm, reminders.
 5. **Assets & LMS**: presigned uploads, signed downloads, courses, Mux playback, progress.
 6. **Editorial**: Tiptap CMS, scheduled publishing, OG images, RSS/sitemap, newsletter.
