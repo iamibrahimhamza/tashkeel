@@ -35,6 +35,9 @@ export class SandboxGatewayAdapter implements PaymentGatewayAdapter {
     return { id, url: `${env().WEB_URL}/pay/sandbox/${id}` };
   }
 
+  /** The sandbox approval endpoint already refuses orders that are no longer pending. */
+  async expireCheckoutSession(): Promise<void> {}
+
   /** The id encodes what is being subscribed to, so the sandbox needs no extra storage. */
   async createSubscriptionCheckout(args: Parameters<PaymentGatewayAdapter["createSubscriptionCheckout"]>[0]) {
     const id = `${SUB_PREFIX}${Buffer.from(JSON.stringify({ w: args.workspaceId, p: args.priceId })).toString("base64url")}`;

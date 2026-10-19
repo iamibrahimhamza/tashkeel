@@ -27,6 +27,11 @@ export class FakeGatewayAdapter implements PaymentGatewayAdapter {
     return { id: `cs_sub_${this.subscriptionCheckouts.length}`, url: "https://checkout.stripe.test/sub" };
   }
 
+  expired: string[] = [];
+  async expireCheckoutSession(id: string) {
+    this.expired.push(id);
+  }
+
   async retrieveSubscription(id: string) {
     const s = this.subscriptions.get(id);
     if (!s) throw new Error(`no such subscription ${id}`);

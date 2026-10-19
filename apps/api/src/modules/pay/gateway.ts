@@ -40,6 +40,12 @@ export interface PaymentGatewayAdapter {
     idempotencyKey: string;
   }): Promise<{ id: string; url: string }>;
 
+  /**
+   * Closes an unpaid checkout so it can no longer be paid (used when a booking hold lapses).
+   * Must be a no-op for sessions that are already complete or expired.
+   */
+  expireCheckoutSession(sessionId: string): Promise<void>;
+
   /** Current state of a subscription, read fresh from the processor. */
   retrieveSubscription(id: string): Promise<ProviderSubscription>;
 

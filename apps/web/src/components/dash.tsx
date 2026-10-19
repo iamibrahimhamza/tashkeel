@@ -9,6 +9,8 @@ export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; a
 const ICONS = {
   overview: "M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z",
   home: "M4 11 12 4l8 7v9h-5v-6H9v6H4z",
+  services: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2",
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5h4",
   sales: "M4 19V9M10 19V5M16 19v-7M22 19H2",
   clients: "M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6M22 19v-1a4 4 0 0 0-3-3.9M16 4.1a3 3 0 0 1 0 5.8",
   bookings: "M5 6h14v13H5zM5 10h14M9 3v4M15 3v4",

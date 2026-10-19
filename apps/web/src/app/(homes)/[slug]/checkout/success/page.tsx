@@ -1,4 +1,4 @@
-import { formatMoney } from "@tashkeel/core";
+import { formatMoney, intlLocale } from "@tashkeel/core/money";
 import { ButtonLink, LogoMark } from "@tashkeel/ui";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -34,8 +34,12 @@ export default async function CheckoutSuccess({ params, searchParams }: Props) {
         <p className="mt-4 text-muted">
           {paid
             ? ar
-              ? "أرسلنا إيصالاً وتفاصيل الوصول إلى بريدك الإلكتروني."
-              : "We've emailed your receipt and access details."
+              ? order.booking
+                ? "تم تأكيد موعدك، وأرسلنا التفاصيل إلى بريدك الإلكتروني."
+                : "أرسلنا إيصالاً وتفاصيل الوصول إلى بريدك الإلكتروني."
+              : order.booking
+                ? "Your session is confirmed; we've emailed the details."
+                : "We've emailed your receipt and access details."
             : pending
               ? ar
                 ? "قد يستغرق ذلك بضع ثوانٍ. ستتحدّث الصفحة تلقائياً."
@@ -48,6 +52,11 @@ export default async function CheckoutSuccess({ params, searchParams }: Props) {
           {order.items.map((i) => (
             <p key={i.title} className="font-heading">{i.title}</p>
           ))}
+          {order.booking && (
+            <p className="mt-2 text-sm">
+              {new Intl.DateTimeFormat(intlLocale(ar ? "ar" : "en"), { dateStyle: "full", timeStyle: "short", timeZone: order.booking.customerTz }).format(new Date(order.booking.startsAt))}
+            </p>
+          )}
           <p className="mt-1 text-sm text-muted">{formatMoney(BigInt(order.amountMinor), order.currency, { locale: ar ? "ar" : "en" })} · {order.workspace.name}</p>
         </div>
         <ButtonLink href={`/${order.workspace.slug}`} variant="secondary" className="mt-8">

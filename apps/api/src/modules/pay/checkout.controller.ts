@@ -1,25 +1,18 @@
-import { Controller, Get, Inject, Param, Post } from "@nestjs/common";
+import { Controller, Get, Param, Post } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { CreateCheckoutInput, type CheckoutSession } from "@tashkeel/contracts";
-import { computeFees, DEFAULT_PLANS, providerIdempotencyKey } from "@tashkeel/core";
 import { Public } from "../../common/auth";
 import { DomainError, Errors } from "../../common/errors";
 import { Idempotent } from "../../common/idempotency";
 import { PrismaService } from "../../common/prisma.service";
 import { ValidBody } from "../../common/zod";
-import { env } from "../../config/env";
-import { FulfillmentService } from "./fulfillment.service";
-import { PAYMENT_GATEWAY, type PaymentGatewayAdapter } from "./gateway";
-
-/** Stripe's minimum session lifetime; bookings hold their slot for the same window. */
-const SESSION_TTL_MS = 30 * 60_000;
+import { CheckoutService, type CheckoutLine } from "./checkout.service";
 
 @Controller("v1/checkout")
 export class CheckoutController {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly fulfillment: FulfillmentService,
-    @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGatewayAdapter,
+    private readonly checkout: CheckoutService,
   ) {}
 
   /**
@@ -35,7 +28,7 @@ export class CheckoutController {
     const ws = await db.workspace.findUnique({ where: { slug: input.workspaceSlug } });
     if (!ws) throw Errors.notFound("Workspace");
 
-    let line: { title: string; unitPriceMinor: bigint; currency: string; productId?: string; bookingId?: string; serviceId?: string };
+    let line: CheckoutLine;
     let cancelPath: string;
     if (input.item.kind === "product") {
       const product = await db.product.findFirst({ where: { id: input.item.productId, workspaceId: ws.id, status: "PUBLISHED" } });
@@ -55,64 +48,7 @@ export class CheckoutController {
       cancelPath = `/${ws.slug}`;
     }
 
-    const plan = (await db.plan.findUnique({ where: { code: ws.planCode } })) ?? { ...DEFAULT_PLANS[ws.planCode], code: ws.planCode };
-    const fees = computeFees(line.unitPriceMinor, { feeBps: plan.feeBps, feeFixedMinor: plan.feeFixedMinor });
-
-    // Buyers check out as guests; their account is keyed by email and claimed later via magic link.
-    const customer = await db.user.upsert({
-      where: { email: input.customer.email },
-      update: {},
-      create: { email: input.customer.email, name: input.customer.name ?? null, locale: input.locale },
-    });
-
-    const order = await db.order.create({
-      data: {
-        workspaceId: ws.id,
-        customerId: customer.id,
-        currency: line.currency,
-        subtotalMinor: fees.grossMinor,
-        platformFeeMinor: fees.platformFeeMinor,
-        feeBpsSnapshot: plan.feeBps,
-        feeFixedSnapshot: plan.feeFixedMinor,
-        items: {
-          create: {
-            title: line.title,
-            unitPriceMinor: line.unitPriceMinor,
-            productId: line.productId ?? null,
-            bookingId: line.bookingId ?? null,
-            serviceId: line.serviceId ?? null,
-          },
-        },
-      },
-    });
-
-    if (fees.grossMinor === 0n) {
-      await this.fulfillment.settlePaid(order.id, { paymentIntentId: null, processorFeeMinor: 0n });
-      return { orderId: order.id, checkoutUrl: null, expiresAt: null, status: "PAID" };
-    }
-
-    const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-    const web = env().WEB_URL;
-    try {
-      const session = await this.gateway.createCheckoutSession({
-        orderId: order.id,
-        currency: line.currency,
-        lineItems: [{ title: line.title, unitAmountMinor: line.unitPriceMinor, quantity: 1 }],
-        customerEmail: customer.email,
-        locale: input.locale,
-        successUrl: `${web}/${ws.slug}/checkout/success?order=${order.id}`,
-        cancelUrl: `${web}${cancelPath}`,
-        expiresAt,
-        idempotencyKey: providerIdempotencyKey.checkoutSession(order.id),
-      });
-      await db.order.update({ where: { id: order.id }, data: { stripeCheckoutSessionId: session.id } });
-      if (line.bookingId) await db.booking.update({ where: { id: line.bookingId }, data: { holdExpiresAt: expiresAt } });
-      return { orderId: order.id, checkoutUrl: session.url, expiresAt: expiresAt.toISOString(), status: "PENDING" };
-    } catch (e) {
-      // No session exists for this order; close it so it never shows as pending.
-      await db.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
-      throw e;
-    }
+    return this.checkout.start({ workspace: ws, line, customer: input.customer, locale: input.locale, cancelPath });
   }
 
   /** Minimal, non-sensitive status for the post-checkout page (order ids are unguessable). */
@@ -121,7 +57,13 @@ export class CheckoutController {
   async status(@Param("orderId") orderId: string) {
     const order = await this.prisma.db.order.findUnique({
       where: { id: orderId },
-      select: { status: true, currency: true, subtotalMinor: true, items: { select: { title: true, productId: true, bookingId: true } }, workspace: { select: { slug: true, name: true } } },
+      select: {
+        status: true,
+        currency: true,
+        subtotalMinor: true,
+        items: { select: { title: true, productId: true, booking: { select: { startsAt: true, endsAt: true, customerTz: true, status: true } } } },
+        workspace: { select: { slug: true, name: true } },
+      },
     });
     if (!order) throw Errors.notFound("Order");
     return {
@@ -130,6 +72,10 @@ export class CheckoutController {
       amountMinor: order.subtotalMinor.toString(),
       workspace: order.workspace,
       items: order.items.map((i) => ({ title: i.title, kind: i.productId ? "product" : "booking" })),
+      booking: (() => {
+        const b = order.items.find((i) => i.booking)?.booking;
+        return b ? { startsAt: b.startsAt.toISOString(), endsAt: b.endsAt.toISOString(), customerTz: b.customerTz, status: b.status } : null;
+      })(),
     };
   }
 }

@@ -47,6 +47,11 @@ export interface ComputedSlot {
 
 const MIN = 60_000;
 
+/** How long a chosen slot is held for the buyer while they pay. */
+export const BOOKING_HOLD_MINUTES = 10;
+/** Widest date range the public slots endpoint will compute in one call. */
+export const MAX_SLOT_RANGE_DAYS = 62;
+
 function windowsFor(date: string, a: AvailabilityInput): Window[] {
   const override = a.overrides[date];
   if (override) return override;

@@ -51,6 +51,7 @@ export class FulfillmentService {
       }
 
       const items = await tx.orderItem.findMany({ where: { orderId: order.id }, include: { booking: true } });
+      const bookingsConfirmed: Array<{ id: string; startsAt: Date; endsAt: Date; customerTz: string }> = [];
       for (const item of items) {
         if (item.productId) {
           await tx.entitlement.upsert({
@@ -62,6 +63,7 @@ export class FulfillmentService {
         if (item.booking) {
           if (bookingMachine.can(item.booking.status, "CONFIRMED")) {
             await tx.booking.update({ where: { id: item.booking.id }, data: { status: "CONFIRMED", holdExpiresAt: null } });
+            bookingsConfirmed.push(item.booking);
           } else if (item.booking.status !== "CONFIRMED") {
             // Paid after the hold expired and the slot was released: needs a human (refund or reschedule).
             this.log.warn(`order ${order.id} paid for booking ${item.booking.id} in status ${item.booking.status}`);
@@ -80,6 +82,20 @@ export class FulfillmentService {
 
       const owner = await tx.membership.findFirst({ where: { workspaceId: order.workspaceId, role: "OWNER" }, include: { user: { select: { email: true, locale: true } } } });
       const emailData = { orderId: order.id, amountMinor: order.subtotalMinor.toString(), currency: order.currency, items: items.map((i) => i.title) };
+      if (bookingsConfirmed.length) {
+        const ws = await tx.workspace.findUniqueOrThrow({ where: { id: order.workspaceId }, select: { name: true, timezone: true } });
+        const title = items.find((i) => i.bookingId)?.title ?? "";
+        for (const b of bookingsConfirmed) {
+          const when = { startsAt: b.startsAt.toISOString(), endsAt: b.endsAt.toISOString(), title, expert: ws.name };
+          await tx.emailOutbox.createMany({
+            skipDuplicates: true,
+            data: [
+              { dedupeKey: `booking:customer:${b.id}`, to: customer.email, template: "booking_confirmed", locale: customer.locale, data: { ...when, timezone: b.customerTz } },
+              ...(owner ? [{ dedupeKey: `booking:expert:${b.id}`, to: owner.user.email, template: "new_booking", locale: owner.user.locale, data: { ...when, timezone: ws.timezone, client: customer.name ?? customer.email } }] : []),
+            ],
+          });
+        }
+      }
       await tx.emailOutbox.createMany({
         skipDuplicates: true,
         data: [

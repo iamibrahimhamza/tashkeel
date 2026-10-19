@@ -49,3 +49,12 @@ describe("courses block", () => {
     expect(PageBlocks.parse([{ id: "c", type: "courses", props: {} }])[0]).toMatchObject({ props: { heading: "الدورات" } });
   });
 });
+
+describe("availability", () => {
+  it("rejects overlapping windows and duplicate weekdays", () => {
+    const w = (startLocal: string, endLocal: string) => ({ startLocal, endLocal });
+    expect(PutAvailabilityInput.safeParse({ timezone: "Asia/Riyadh", weekly: [{ weekday: 1, windows: [w("09:00", "12:00"), w("12:00", "14:00")] }] }).success).toBe(true);
+    expect(PutAvailabilityInput.safeParse({ timezone: "Asia/Riyadh", weekly: [{ weekday: 1, windows: [w("09:00", "12:00"), w("11:00", "14:00")] }] }).success).toBe(false);
+    expect(PutAvailabilityInput.safeParse({ timezone: "Asia/Riyadh", weekly: [{ weekday: 1, windows: [] }, { weekday: 1, windows: [] }] }).success).toBe(false);
+  });
+});

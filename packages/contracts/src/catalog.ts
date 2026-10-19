@@ -124,5 +124,6 @@ export const CheckoutOrderStatus = z.object({
   amountMinor: z.string(),
   workspace: z.object({ slug: z.string(), name: z.string() }),
   items: z.array(z.object({ title: z.string(), kind: z.enum(["product", "booking"]) })),
+  booking: z.object({ startsAt: z.string(), endsAt: z.string(), customerTz: z.string(), status: z.string() }).nullable().optional(),
 });
 export type CheckoutOrderStatus = z.infer<typeof CheckoutOrderStatus>;

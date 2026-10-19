@@ -1,11 +1,15 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { formatMoney } from "@tashkeel/core";
+import { formatMoney, intlLocale } from "@tashkeel/core";
 import type { EmailOutbox } from "@tashkeel/db";
 import { env } from "../config/env";
 import { PrismaService } from "./prisma.service";
 
 type Rendered = { subject: string; text: string };
 type Data = Record<string, unknown>;
+
+/** Session time in the recipient's own timezone, Western digits. */
+const when = (d: Data, locale: "ar" | "en") =>
+  new Intl.DateTimeFormat(intlLocale(locale), { dateStyle: "full", timeStyle: "short", timeZone: String(d.timezone) }).format(new Date(String(d.startsAt)));
 
 const money = (d: Data, locale: "ar" | "en") => formatMoney(BigInt(String(d.amountMinor ?? "0")), String(d.currency ?? "USD"), { locale });
 
@@ -19,6 +23,14 @@ const TEMPLATES: Record<string, (d: Data, l: "ar" | "en") => Rendered> = {
     l === "ar"
       ? { subject: `عملية بيع جديدة: ${money(d, l)}`, text: `مبروك! تمت عملية بيع جديدة بقيمة ${money(d, l)}.\n${(d.items as string[]).join("\n")}` }
       : { subject: `New sale: ${money(d, l)}`, text: `Congratulations! New sale of ${money(d, l)}.\n${(d.items as string[]).join("\n")}` },
+  booking_confirmed: (d, l) =>
+    l === "ar"
+      ? { subject: `تم تأكيد موعدك: ${d.title}`, text: `تم تأكيد جلستك مع ${d.expert}.\nالموعد: ${when(d, l)} (${d.timezone})` }
+      : { subject: `Your session is confirmed: ${d.title}`, text: `Your session with ${d.expert} is confirmed.\nWhen: ${when(d, l)} (${d.timezone})` },
+  new_booking: (d, l) =>
+    l === "ar"
+      ? { subject: `حجز جديد: ${d.title}`, text: `حجز ${d.client} جلسة "${d.title}".\nالموعد: ${when(d, l)} (${d.timezone})` }
+      : { subject: `New booking: ${d.title}`, text: `${d.client} booked "${d.title}".\nWhen: ${when(d, l)} (${d.timezone})` },
   payout_paid: (d, l) =>
     l === "ar"
       ? { subject: "تم تحويل أرباحك", text: `حوّلنا ${money(d, l)} إلى حسابك.\nمرجع التحويل: ${d.providerRef}` }

@@ -61,6 +61,16 @@ export class StripeGatewayAdapter implements PaymentGatewayAdapter {
     return { id: session.id, url: session.url };
   }
 
+  async expireCheckoutSession(sessionId: string): Promise<void> {
+    try {
+      await this.stripe().checkout.sessions.expire(sessionId);
+    } catch (e) {
+      // Already completed or expired: nothing left to close.
+      if (e instanceof Stripe.errors.StripeInvalidRequestError) return;
+      throw e;
+    }
+  }
+
   async retrieveSubscription(id: string): Promise<ProviderSubscription> {
     const sub = await this.stripe().subscriptions.retrieve(id);
     const item = sub.items.data[0];

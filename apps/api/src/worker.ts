@@ -6,6 +6,8 @@ import { EmailRelay } from "./common/email";
 import { QUEUES } from "./common/queue";
 import { env } from "./config/env";
 import { FulfillmentService } from "./modules/pay/fulfillment.service";
+import { BookingModule } from "./modules/booking/booking.module";
+import { HoldsService } from "./modules/booking/holds.service";
 import { PayModule } from "./modules/pay/pay.module";
 import { PayoutEventsProcessor } from "./modules/pay/payout-events.processor";
 import { StripeEventsProcessor } from "./modules/pay/stripe-events.processor";
@@ -15,7 +17,7 @@ import { runReleaseFunds, SCHEDULES } from "./modules/scheduler.service";
  * Background worker (QUEUE_DRIVER=bullmq): same domain services as the API, no HTTP server.
  * Run one or more replicas: `node dist/worker.js`. Jobs are at-least-once; handlers are idempotent.
  */
-@Module({ imports: [PayModule] })
+@Module({ imports: [PayModule, BookingModule] })
 class WorkerModule {}
 
 const MAINTENANCE = "maintenance";
@@ -29,6 +31,7 @@ async function main() {
   const payouts = app.get(PayoutEventsProcessor);
   const fulfillment = app.get(FulfillmentService);
   const email = app.get(EmailRelay);
+  const holds = app.get(HoldsService);
 
   const workers = [
     new Worker(QUEUES.stripeEvents, (job) => stripe.handle(job.data.id), { connection, concurrency: 8 }),
@@ -38,6 +41,7 @@ async function main() {
       async (job) => {
         if (job.name === "release-funds") await runReleaseFunds(fulfillment, log);
         if (job.name === "email-relay") await email.relayBatch(100);
+        if (job.name === "expire-holds") await holds.expireDue();
       },
       { connection, concurrency: 1 },
     ),
@@ -47,6 +51,7 @@ async function main() {
   const maintenance = new Queue(MAINTENANCE, { connection });
   await maintenance.upsertJobScheduler("release-funds", { every: SCHEDULES.releaseFundsMs }, { name: "release-funds" });
   await maintenance.upsertJobScheduler("email-relay", { every: SCHEDULES.emailRelayMs }, { name: "email-relay" });
+  await maintenance.upsertJobScheduler("expire-holds", { every: SCHEDULES.expireHoldsMs }, { name: "expire-holds" });
   log.log("worker started");
 
   const shutdown = async () => {

@@ -6,6 +6,7 @@ import { env } from "../../config/env";
 import { AdminPayController } from "./admin.controller";
 import { BillingService } from "./billing.service";
 import { CheckoutController } from "./checkout.controller";
+import { CheckoutService } from "./checkout.service";
 import { FinanceController } from "./finance.controller";
 import { FulfillmentService } from "./fulfillment.service";
 import { LedgerService } from "./ledger.service";
@@ -26,6 +27,7 @@ import { WebhooksController } from "./webhooks.controller";
     PrismaService,
     LedgerService,
     FulfillmentService,
+    CheckoutService,
     BillingService,
     PayoutsService,
     StripeEventsProcessor,
@@ -45,7 +47,7 @@ import { WebhooksController } from "./webhooks.controller";
       useFactory: (): JobQueue => (env().QUEUE_DRIVER === "bullmq" ? new BullQueue(env().REDIS_URL) : new InlineQueue()),
     },
   ],
-  exports: [FulfillmentService, StripeEventsProcessor, PayoutEventsProcessor, EmailRelay, LedgerService, JOB_QUEUE],
+  exports: [FulfillmentService, CheckoutService, StripeEventsProcessor, PayoutEventsProcessor, EmailRelay, LedgerService, JOB_QUEUE, PAYMENT_GATEWAY],
 })
 export class PayModule implements OnModuleInit {
   constructor(

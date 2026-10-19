@@ -114,7 +114,7 @@ export const ar = {
     failed: "تعذّر إكمال الطلب، حاول مرة أخرى",
   },
   dash: {
-    nav: { overview: "نظرة عامة", home: "صفحتي", sales: "المبيعات", clients: "العملاء", bookings: "الحجوزات", products: "المنتجات والدورات", payouts: "الأرباح والسحب", billing: "الخطة والاشتراك", viewPage: "عرض صفحتي", admin: "لوحة الإدارة" },
+    nav: { overview: "نظرة عامة", home: "صفحتي", services: "الخدمات الاستشارية", availability: "أوقات الإتاحة", sales: "المبيعات", clients: "العملاء", bookings: "الحجوزات", products: "المنتجات والدورات", payouts: "الأرباح والسحب", billing: "الخطة والاشتراك", viewPage: "عرض صفحتي", admin: "لوحة الإدارة" },
     balance: { pending: "قيد الانتظار", pendingHint: "أرباح داخل فترة الحماية", available: "متاح للسحب", inTransit: "قيد التحويل", nextRelease: "يصبح متاحاً في" },
     overview: { title: "نظرة عامة", recentSales: "آخر المبيعات", seeAll: "عرض الكل" },
     empty: {

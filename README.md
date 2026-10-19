@@ -6,7 +6,7 @@ The digital home for Arab experts, consultants and knowledge creators: one link 
 
 | Path | What |
 |---|---|
-| `apps/web` | Next.js 15: marketing site, public expert homes `/[slug]` (ISR), page builder, product pages, sandbox checkout, expert dashboard, admin |
+| `apps/web` | Next.js 15: marketing site, public expert homes `/[slug]` (ISR), page builder, booking flow, product pages, sandbox checkout, expert dashboard, admin |
 | `apps/api` | NestJS REST API `/v1` (auth, RBAC, idempotency, workspaces, digital home, Tashkeel Pay) plus `src/worker.ts`, the BullMQ worker that runs the same domain services without HTTP |
 | `packages/db` | Prisma schema for **all** modules, SQL integrity migrations, seed, zero-install local Postgres |
 | `packages/contracts` | Zod schemas: the API contract that both api and web use |
@@ -94,6 +94,18 @@ Set `QUEUE_DRIVER=bullmq` (with Redis) and run `pnpm --filter @tashkeel/api work
 - **Layouts**: the app has two root layouts. `(main)` covers marketing, auth, dashboard and admin and follows the language cookie. `(homes)` is Arabic RTL and reads no cookies, so homes can be cached.
 - The web app compiles `@tashkeel/contracts` and `@tashkeel/core` from source (`transpilePackages`). Node consumers (API, worker, seed) load their compiled `dist/`. Client code imports `@tashkeel/core/money`, never the Node-only `@tashkeel/core` root.
 
+## Consultations & Booking (Module B)
+
+- **Expert side**: `/dashboard/:id/services` covers each consultation's duration, breaks before and after, price in USD, format, minimum notice and how far ahead it can be booked. `/dashboard/:id/availability` sets the weekly hours in the expert's timezone, several windows per day with no overlaps, plus date exceptions (a day off or custom hours). `/dashboard/:id/bookings` splits upcoming from past and cancelled sessions and shows each time in both the expert's and the client's timezone.
+- **Public booking** `/[slug]/book/[serviceId]`: a month calendar that detects the visitor's timezone and lets them switch it. Days without times are disabled. Slots come from `GET /v1/public/homes/:slug/services/:id/slots?from&to&tz`, which evaluates the rules per date in the expert's timezone (`computeSlots`), so DST changes are handled.
+- **Hold to checkout** `POST /v1/public/bookings` (Idempotency-Key):
+  1. The API re-validates the slot.
+  2. It creates a `PENDING_PAYMENT` booking held for 10 minutes. The database's no-overlap constraint decides any race for the same slot (409 `SLOT_UNAVAILABLE`).
+  3. It opens checkout through the same `CheckoutService` as products, on Sandbox or Stripe.
+  4. Payment confirms the booking and queues confirmation emails (times in each recipient's timezone). Free sessions confirm immediately.
+- **Hold expiry** runs every minute (in-process, or in the BullMQ worker). It cancels lapsed holds, expires their orders and closes the gateway session, so a buyer can't pay for a slot that has been released.
+- Known limit: if a payment lands at the exact moment its hold is released, the order is paid but the booking stays cancelled. It is flagged on the client timeline (`BOOKING_PAID_AFTER_RELEASE`) for a manual refund or reschedule. Automatic refunds for this case are not built.
+
 ## Tests
 
 ```bash
@@ -103,6 +115,7 @@ pnpm test        # every package
 - `packages/core`: fee math, a balanced ledger (property tests), the slot engine across DST and timezone pairs, state machines, RBAC
 - `packages/db`: applies the real migration SQL to an in-process Postgres and proves that overlapping bookings are rejected, unbalanced or edited ledger rows are rejected, and emails/slugs are unique regardless of case
 - `apps/api`: boots the real Nest app on in-process Postgres and covers auth, 422 validation shape, 404 for other users' workspaces, Idempotency-Key replay/reuse/missing, and the draft→publish flow
+- `apps/api/test/booking.test.ts`: covers service and availability validation, timezone-correct slots, day-off overrides, 10-minute holds, double and concurrent booking races, idempotent holds, hold expiry freeing the slot, sandbox payment confirming the booking, and free sessions
 - `apps/api/test/sandbox.test.ts`: runs the real Sandbox adapter. Covers approve and decline, the event pipeline, simulated refunds, a plan upgrade, Super Admin settings (no secret values) and the list endpoints
 - `apps/api/test/pay.test.ts`: uses a fake Stripe client with real signature checks. Covers server-side pricing, idempotent checkout, forged and duplicate webhooks, partial and full refunds, lost disputes, funds release, encrypted payout profiles, concurrent payout requests that must not overdraw, the staff payout flow, signed rail callbacks, plan sync and the email outbox
 
@@ -119,7 +132,7 @@ pnpm test        # every package
 1. **Foundation**: done. Monorepo, full schema, integrity constraints, contracts, core logic, auth + RBAC, idempotency, error/validation/rate limits, design system, RTL shell, landing page, public homes.
 2. **Tashkeel Pay**: done. Gateway adapters (Sandbox and Stripe), ledger, checkout, webhooks, balances, payouts and the staff queue, plans, worker, dashboard and admin screens. Stripe Connect onboarding is not built yet.
 3. **Digital Home builder**: done. The block builder, versions and rollback, ISR plus on-demand revalidation, SEO, sitemap and robots. Custom domains are not built yet.
-4. **Consultations**: availability API, slots endpoint (`computeSlots`), hold → pay → confirm, reminders.
+4. **Consultations**: done. Services and availability editors, public booking with timezones, 10-minute holds into checkout, expiry, and confirmation emails. Session reminders and video links are not built yet.
 5. **Assets & LMS**: presigned uploads, signed downloads, courses, Mux playback, progress.
 6. **Editorial**: Tiptap CMS, scheduled publishing, OG images, RSS/sitemap, newsletter.
 7. **CRM & Analytics**: contact unification, timeline, rollups, dashboards.
