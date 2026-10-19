@@ -10,6 +10,7 @@ const Env = z.object({
   PORT: z.coerce.number().int().default(4000),
   DATABASE_URL: z.string().url(),
   WEB_URL: z.string().url().default("http://localhost:3000"),
+  API_URL: z.string().url().default("http://localhost:4000"),
   AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters"),
   CORS_ORIGINS: z
     .string()
@@ -17,6 +18,7 @@ const Env = z.object({
     .transform((v) => (v ? v.split(",").map((s) => s.trim()) : undefined)),
 
   // ── Tashkeel Pay ──
+  /** Empty or "mock" → local sandbox gateway. A real sk_… key → Stripe. */
   STRIPE_SECRET_KEY: optional,
   STRIPE_WEBHOOK_SECRET: optional,
   /** base64 of 32 random bytes; encrypts payout account details at rest. */
@@ -46,7 +48,8 @@ export function env(): Env {
       throw new Error(`Invalid environment:\n${issues}`);
     }
     if (parsed.data.NODE_ENV === "production") {
-      const missing = (["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "PAYOUT_ENCRYPTION_KEY"] as const).filter((k) => !parsed.data[k]);
+      // The sandbox gateway must never run in production: real keys are mandatory there.
+      const missing = (["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "PAYOUT_ENCRYPTION_KEY"] as const).filter((k) => !parsed.data[k] || parsed.data[k] === "mock");
       if (missing.length) throw new Error(`Invalid environment: ${missing.join(", ")} required in production`);
     }
     cached = parsed.data;

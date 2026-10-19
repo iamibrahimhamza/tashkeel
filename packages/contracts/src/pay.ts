@@ -176,3 +176,29 @@ export type PayoutProviderEvent = z.infer<typeof PayoutProviderEvent>;
 
 export const BillingCheckoutInput = z.object({ planCode: z.enum(["PRO", "BUSINESS"]) });
 export type BillingCheckoutInput = z.infer<typeof BillingCheckoutInput>;
+
+// ── Sandbox gateway (local mock of the card processor) ──
+
+export const SandboxDecisionInput = z.object({ decision: z.enum(["approve", "decline"]) });
+export const SandboxRefundInput = z.object({ amountMinor: z.string().regex(/^[1-9]\d*$/) });
+
+export const SandboxSession = z.object({
+  kind: z.enum(["payment", "subscription"]),
+  sessionId: z.string(),
+  status: z.string(),
+  workspace: z.object({ name: z.string(), slug: z.string().nullable() }),
+  currency: z.string(),
+  amountMinor: z.string(),
+  items: z.array(z.object({ title: z.string() })),
+});
+export type SandboxSession = z.infer<typeof SandboxSession>;
+
+/** Super Admin view of how payments are wired. Never contains secret values. */
+export const PaymentSettings = z.object({
+  mode: z.enum(["stripe", "sandbox"]),
+  webhookUrl: z.string(),
+  webhookEvents: z.array(z.string()),
+  keys: z.array(z.object({ name: z.string(), isSet: z.boolean(), where: z.enum(["api", "web"]), purpose: z.string() })),
+  plansMissingPriceId: z.array(z.string()),
+});
+export type PaymentSettings = z.infer<typeof PaymentSettings>;

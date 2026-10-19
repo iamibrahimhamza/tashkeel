@@ -59,6 +59,7 @@ async function verifyAccessToken(token: string): Promise<AuthUser | null> {
 const PUBLIC = "tashkeel:public";
 const PERMISSION = "tashkeel:permission";
 const STAFF_ONLY = "tashkeel:staff";
+const SUPERADMIN_ONLY = "tashkeel:superadmin";
 
 /** Route needs no authentication (a valid token is still attached when present). */
 export const Public = () => SetMetadata(PUBLIC, true);
@@ -66,6 +67,8 @@ export const Public = () => SetMetadata(PUBLIC, true);
 export const RequirePermission = (p: Permission) => SetMetadata(PERMISSION, p);
 /** Platform staff only (payout operations, webhook replays). */
 export const StaffOnly = () => SetMetadata(STAFF_ONLY, true);
+/** Platform owner only (payment configuration, platform settings). */
+export const SuperAdminOnly = () => SetMetadata(SUPERADMIN_ONLY, true);
 
 export const CurrentUser = createParamDecorator((_: unknown, ctx: ExecutionContext) => {
   const user = ctx.switchToHttp().getRequest<AuthedRequest>().user;
@@ -107,6 +110,9 @@ export class AuthGuard implements CanActivate {
 
     if (this.reflector.getAllAndOverride<boolean>(STAFF_ONLY, targets)) {
       if (req.user.platformRole === "USER") throw Errors.forbidden();
+    }
+    if (this.reflector.getAllAndOverride<boolean>(SUPERADMIN_ONLY, targets)) {
+      if (req.user.platformRole !== "SUPERADMIN") throw Errors.forbidden();
     }
 
     const permission = this.reflector.getAllAndOverride<Permission | undefined>(PERMISSION, targets);

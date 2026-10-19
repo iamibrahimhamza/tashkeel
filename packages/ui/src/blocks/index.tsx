@@ -6,7 +6,7 @@ import { ButtonLink, Container, cx, themeStyle } from "../primitives";
 
 type Ctx = {
   home: PublicHome;
-  /** Builds links inside the expert's home, e.g. `/sara/book/svc_1`. */
+  /** Builds links inside the expert's home, e.g. `/ibrahim/book/<serviceId>`. */
   href: (path: string) => string;
   locale: "ar" | "en";
 };
