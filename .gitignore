@@ -1,12 +1,25 @@
+# Dependencies & build output
 node_modules
 dist
 .next
 .turbo
 coverage
 *.tsbuildinfo
-.env
-.env.*.local
-!.env.example
-.DS_Store
 next-env.d.ts
+
+# Secrets — never commit real environment files or keys
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Local databases
 .pglite
+*.db
+*.sqlite
+
+# Local tooling
+.claude/
+.DS_Store
