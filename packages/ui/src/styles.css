@@ -1,0 +1,106 @@
+/*
+ * Tashkeel design tokens — "Warm Editorial Luxury".
+ * Palette from the brand guide: forest ink #19221E, gold #A98B4C, light gold #D4B87B,
+ * sand #F3EFEA, paper #FAF8F6.
+ *
+ * Colours are CSS variables so a public home can re-theme any subtree by setting
+ * --ink/--paper/... inline (see themeStyle()).
+ */
+/* The consuming app imports "tailwindcss" first, then this file. */
+@source "./";
+
+:root {
+  --ink: #19221e;
+  --paper: #faf8f6;
+  --sand: #f3efea;
+  --accent: #a98b4c;
+  --accent-soft: #d4b87b;
+  --muted: #6b6f69;
+  --line: color-mix(in oklab, var(--ink) 14%, transparent);
+  --radius: 14px;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-sand: var(--sand);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-forest: #19221e;
+  --color-gold: #a98b4c;
+  --color-gold-light: #d4b87b;
+
+  --font-display: var(--font-kufam), var(--font-readex), system-ui, sans-serif;
+  --font-heading: var(--font-readex), var(--font-plex), system-ui, sans-serif;
+  --font-body: var(--font-plex), var(--font-readex), system-ui, sans-serif;
+
+  --radius-brand: var(--radius);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.8;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-heading);
+    line-height: 1.35;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  /* Thin gold rule used as an editorial divider. */
+  .rule {
+    height: 1px;
+    background: linear-gradient(to left, transparent, var(--accent) 20%, var(--accent) 80%, transparent);
+    opacity: 0.55;
+  }
+  .eyebrow {
+    font-family: var(--font-heading);
+    font-size: 0.8125rem;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+  }
+  .prose-editorial {
+    font-size: 1.0625rem;
+    line-height: 2;
+  }
+  .prose-editorial h2 {
+    font-size: 1.5rem;
+    margin-block: 2.25rem 0.75rem;
+  }
+  .prose-editorial p {
+    margin-block: 0 1.1rem;
+  }
+  .prose-editorial strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "@tashkeel/api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput & node --watch --env-file-if-exists=../../.env dist/main.js",
+    "start": "node --env-file-if-exists=../../.env dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "worker": "node --env-file-if-exists=../../.env dist/worker.js"
+  },
+  "dependencies": {
+    "@nestjs/common": "11.1.6",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/platform-express": "11.1.6",
+    "@nestjs/throttler": "6.4.0",
+    "@tashkeel/contracts": "workspace:*",
+    "@tashkeel/core": "workspace:*",
+    "@tashkeel/db": "workspace:*",
+    "helmet": "8.1.0",
+    "jose": "5.10.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "zod": "3.25.76",
+    "stripe": "18.3.0",
+    "bullmq": "5.56.0",
+    "nodemailer": "7.0.5"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.10",
+    "@electric-sql/pglite-socket": "0.0.15",
+    "@nestjs/testing": "11.1.6",
+    "@swc/core": "1.12.9",
+    "@tashkeel/config": "workspace:*",
+    "@types/express": "5.0.3",
+    "@types/node": "22.15.30",
+    "@types/supertest": "6.0.3",
+    "prisma": "6.16.2",
+    "supertest": "7.1.1",
+    "typescript": "5.8.3",
+    "unplugin-swc": "1.5.5",
+    "vitest": "3.2.4",
+    "@types/nodemailer": "6.4.17"
+  }
+}

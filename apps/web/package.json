@@ -1,0 +1,31 @@
+{
+  "name": "@tashkeel/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tashkeel/contracts": "workspace:*",
+    "@tashkeel/core": "workspace:*",
+    "@tashkeel/i18n": "workspace:*",
+    "@tashkeel/ui": "workspace:*",
+    "next": "15.5.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "server-only": "0.0.1",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.1.11",
+    "@tashkeel/config": "workspace:*",
+    "@types/node": "22.15.30",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
+    "tailwindcss": "4.1.11",
+    "typescript": "5.8.3"
+  }
+}

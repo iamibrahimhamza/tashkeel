@@ -1,0 +1,38 @@
+{
+  "name": "@tashkeel/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "generate": "prisma generate",
+    "validate": "prisma validate",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:sql": "prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script",
+    "seed": "tsx --env-file-if-exists=../../.env prisma/seed.ts",
+    "test": "vitest run",
+    "local": "node scripts/dev-db.mjs"
+  },
+  "prisma": {
+    "seed": "tsx --env-file-if-exists=../../.env prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "6.16.2"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.10",
+    "@tashkeel/config": "workspace:*",
+    "@types/node": "22.15.30",
+    "prisma": "6.16.2",
+    "tsx": "4.20.3",
+    "typescript": "5.8.3",
+    "vitest": "3.2.4",
+    "@tashkeel/core": "workspace:*",
+    "@electric-sql/pglite-socket": "0.0.15",
+    "@tashkeel/contracts": "workspace:*"
+  }
+}

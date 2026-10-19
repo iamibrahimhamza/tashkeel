@@ -1,0 +1,38 @@
+{
+  "name": "tashkeel",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:generate": "pnpm --filter @tashkeel/db generate",
+    "db:migrate": "pnpm --filter @tashkeel/db migrate:dev",
+    "db:seed": "pnpm --filter @tashkeel/db seed",
+    "services:up": "docker compose up -d",
+    "services:down": "docker compose down",
+    "db:local": "pnpm --filter @tashkeel/db local"
+  },
+  "devDependencies": {
+    "turbo": "2.5.4",
+    "typescript": "5.8.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "sharp",
+      "@nestjs/core",
+      "@swc/core",
+      "@tailwindcss/oxide",
+      "unrs-resolver"
+    ]
+  }
+}
