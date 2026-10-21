@@ -44,7 +44,7 @@ export function refundFeeShare(order: { grossMinor: bigint; platformFeeMinor: bi
 
 /** Default plan table; the DB `Plan` rows are the runtime source of truth. */
 export const DEFAULT_PLANS = {
-  FREE: { monthlyMinor: 0n, feeBps: 800, feeFixedMinor: 0n },
-  PRO: { monthlyMinor: 2900n, feeBps: 400, feeFixedMinor: 0n },
-  BUSINESS: { monthlyMinor: 7900n, feeBps: 150, feeFixedMinor: 0n },
+  FREE: { monthlyMinor: 0n, feeBps: 400, feeFixedMinor: 0n }, // $0/month + 4%
+  PRO: { monthlyMinor: 900n, feeBps: 200, feeFixedMinor: 0n }, // $9/month + 2%
+  BUSINESS: { monthlyMinor: 1900n, feeBps: 0, feeFixedMinor: 0n }, // $19/month + 0%
 } as const;

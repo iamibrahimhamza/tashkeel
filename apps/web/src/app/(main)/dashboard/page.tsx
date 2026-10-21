@@ -7,5 +7,6 @@ export default async function DashboardIndex() {
   const first = me.workspaces[0];
   if (first) redirect(`/dashboard/${first.id}`);
   if (me.platformRole !== "USER") redirect("/admin");
-  redirect("/signup");
+  // Accounts without a workspace are not part of the beta yet.
+  redirect("/#waitlist");
 }

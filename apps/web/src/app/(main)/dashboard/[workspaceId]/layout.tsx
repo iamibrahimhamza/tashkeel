@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { Shell, type NavItem } from "@/components/dash";
+import { homeLink } from "@/lib/site";
 import { workspaceContext } from "./context";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,7 @@ export default async function DashboardLayout({ children, params }: { children: 
     ...(me.platformRole !== "USER" ? [{ href: "/admin", label: n.admin, icon: "settings" as const }] : []),
   ];
   return (
-    <Shell nav={nav} title={workspace.name} subtitle={`tashkeel.app/${workspace.slug}`} footerLinks={footer} t={t}>
+    <Shell nav={nav} title={workspace.name} subtitle={homeLink(workspace.slug)} footerLinks={footer} t={t}>
       {children}
     </Shell>
   );

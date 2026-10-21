@@ -153,3 +153,34 @@ describe("digital home", () => {
     expect(res.body.error.code).toBe("NOT_FOUND");
   });
 });
+
+describe("waitlist", () => {
+  const join = (body: Record<string, unknown>) => h.http().post("/v1/public/waitlist").send(body);
+
+  it("accepts a request, normalises the link, and never reveals duplicates", async () => {
+    const first = await join({ name: "خبيرة مهتمة", email: "Early@Example.com", specialty: "استشارات تسويق", link: "linkedin.com/in/early" });
+    expect(first.status).toBe(200);
+    expect(first.body).toEqual({ ok: true });
+    const again = await join({ name: "خبيرة مهتمة", email: "early@example.com" });
+    expect(again.body).toEqual({ ok: true });
+  });
+
+  it("validates input", async () => {
+    expect((await join({ name: "x", email: "bad" })).status).toBe(422);
+    expect((await join({ name: "اسم صحيح", email: "a@b.co", link: "not a url at all" })).status).toBe(422);
+  });
+
+  it("is listed for staff only, one row per email", async () => {
+    await h.http().post("/v1/auth/signup").send({ name: "Staff", email: "ops@example.com", password: "correct-horse-battery" });
+    const userToken = (await h.http().post("/v1/auth/login").send({ email: "ops@example.com", password: "correct-horse-battery" })).body.accessToken;
+    expect((await h.http().get("/v1/admin/waitlist").set(auth(userToken))).status).toBe(403);
+
+    const { PrismaService } = await import("../src/common/prisma.service.js");
+    await h.app.get(PrismaService).db.user.update({ where: { email: "ops@example.com" }, data: { platformRole: "STAFF" } });
+    const staffToken = (await h.http().post("/v1/auth/login").send({ email: "ops@example.com", password: "correct-horse-battery" })).body.accessToken;
+    const list = await h.http().get("/v1/admin/waitlist").set(auth(staffToken));
+    expect(list.status).toBe(200);
+    expect(list.body.pagination.totalItems).toBe(1);
+    expect(list.body.data[0]).toMatchObject({ email: "early@example.com", name: "خبيرة مهتمة", link: "https://linkedin.com/in/early" });
+  });
+});

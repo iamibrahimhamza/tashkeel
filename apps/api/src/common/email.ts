@@ -92,6 +92,6 @@ export class EmailRelay {
       const nodemailer = await import("nodemailer");
       this.transport = nodemailer.createTransport(url);
     }
-    await this.transport.sendMail({ from: env().EMAIL_FROM, to, subject: mail.subject, text: mail.text });
+    await this.transport.sendMail({ from: env().EMAIL_FROM ?? `Tashkeel <no-reply@${env().NEXT_PUBLIC_ROOT_DOMAIN}>`, to, subject: mail.subject, text: mail.text });
   }
 }

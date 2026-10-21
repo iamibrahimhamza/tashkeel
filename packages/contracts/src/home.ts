@@ -14,8 +14,8 @@ export const ThemeTokens = z.object({
     muted: Hex,
   }),
   fonts: z.object({
-    display: z.enum(["kufam", "readex", "plex"]),
-    body: z.enum(["plex", "readex"]),
+    display: z.enum(["kufam", "readex"]),
+    body: z.enum(["readex"]),
   }),
   radius: z.enum(["none", "soft", "round"]),
   mode: z.enum(["light", "dark"]),

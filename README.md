@@ -39,6 +39,18 @@ pnpm --filter @tashkeel/web dev               # web on :3000
 
 The seed creates **no invented data**: only the theme presets, the fee plans, the platform ledger accounts and, when `FOUNDER_EMAIL` is set in `.env`, the founder's SUPERADMIN account. That account owns an empty workspace at `/ibrahim` with 0 orders, 0 clients and 0 revenue. If `FOUNDER_PASSWORD` is empty, the seed generates a password and prints it once.
 
+## Plans & brand
+
+| Plan | Monthly | Tashkeel fee per transaction |
+|---|---|---|
+| FREE | $0 | 4% |
+| PRO | $9 | 2% |
+| BUSINESS | $19 | 0% |
+
+Payment gateway fees are charged separately at the gateway's rates and borne by the expert. The plan rows (`pnpm db:seed`) are the source of truth, and `DEFAULT_PLANS` in `packages/core` mirrors them.
+
+Typography: **Kufam** for display and headings, **Readex Pro** for body and UI text. The public domain comes from `NEXT_PUBLIC_ROOT_DOMAIN` (default `tashkeel.online`), and expert homes are clean paths on it (`/<slug>`). The web app loads the root `.env`, so one file configures both apps.
+
 ## Tashkeel Pay
 
 Money moves only through the double-entry ledger (`packages/core/src/ledger.ts`). The database rejects any unbalanced or edited ledger row.
@@ -79,7 +91,8 @@ To test Stripe locally before going live, use test keys and forward events with 
 
 ### Dashboards
 
-- `/login`, `/signup` (claims the link and creates the workspace). The API token lives in an httpOnly cookie.
+- **Pre-beta waitlist**: the landing page collects name, email, field and link through `POST /v1/public/waitlist` (rate-limited; a repeat submission updates the same row and never reveals whether an email is already listed). Staff see the list at `/admin/waitlist`. Public sign-up is closed: `/signup` redirects to the waitlist, and `/login` stays open for invited beta users and the founder.
+- `/login`: the API token lives in an httpOnly cookie.
 - `/dashboard/:workspaceId`: overview, sales, clients, bookings, products, earnings and payouts (add payout methods, request and cancel payouts), and the plan page. Every view reads real data and has a designed empty state. Nothing is ever filled with sample rows.
 - `/admin`: the staff payout queue and payout detail (approve, then mark paid with the transfer reference, or mark failed). `/admin/settings/payments` is SUPERADMIN only.
 

@@ -17,6 +17,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const a = t.dash.admin;
   const nav: NavItem[] = [
     { href: "/admin", label: a.payouts, icon: "payouts", active: path === "/admin" || path.startsWith("/admin/payouts") },
+    { href: "/admin/waitlist", label: a.waitlist, icon: "clients", active: path.startsWith("/admin/waitlist") },
     ...(me.platformRole === "SUPERADMIN" ? [{ href: "/admin/settings/payments", label: a.settings, icon: "settings" as const, active: path.startsWith("/admin/settings") }] : []),
   ];
   const footer: NavItem[] = me.workspaces[0] ? [{ href: `/dashboard/${me.workspaces[0].id}`, label: t.dash.nav.overview, icon: "overview" }] : [];

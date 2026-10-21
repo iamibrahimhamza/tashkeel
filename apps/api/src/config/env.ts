@@ -32,7 +32,9 @@ const Env = z.object({
   QUEUE_DRIVER: z.enum(["inline", "bullmq"]).default("inline"),
   REDIS_URL: z.string().default("redis://localhost:6379"),
   SMTP_URL: optional,
-  EMAIL_FROM: z.string().default("Tashkeel <no-reply@tashkeel.app>"),
+  /** Public domain shared with the web app; the default sender address is derived from it. */
+  NEXT_PUBLIC_ROOT_DOMAIN: z.string().default("tashkeel.online"),
+  EMAIL_FROM: optional,
 });
 
 export type Env = z.infer<typeof Env>;

@@ -820,6 +820,22 @@ model DailyMetric {
 
 // ───────────────────────── Platform ─────────────────────────
 
+/** Pre-beta interest list from the landing page. One row per email; re-submitting updates it. */
+model WaitlistEntry {
+  id        String   @id @default(cuid())
+  email     String   @unique @db.Citext
+  name      String
+  specialty String?
+  link      String?
+  locale    String   @default("ar")
+  source    String? // e.g. "landing:hero"
+  invitedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([createdAt])
+}
+
 model AuditLog {
   id          String     @id @default(cuid())
   actorId     String?

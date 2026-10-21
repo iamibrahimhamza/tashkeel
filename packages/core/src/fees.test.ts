@@ -6,10 +6,10 @@ import { divRound, formatMoney, parseMajor } from "./money";
 describe("computeFees", () => {
   it.each([
     // gross, plan, processor, platformFee, net
-    [10000n, "FREE", 320n, 800n, 8880n],
-    [10000n, "PRO", 320n, 400n, 9280n],
-    [10000n, "BUSINESS", 320n, 150n, 9530n],
-    [999n, "FREE", 0n, 80n, 919n], // 79.92 → 80 (half-up)
+    [10000n, "FREE", 320n, 400n, 9280n],
+    [10000n, "PRO", 320n, 200n, 9480n],
+    [10000n, "BUSINESS", 320n, 0n, 9680n],
+    [999n, "FREE", 0n, 40n, 959n], // 39.96 → 40 (half-up)
     [0n, "FREE", 0n, 0n, 0n],
   ] as const)("gross %s on %s", (gross, plan, proc, fee, net) => {
     const r = computeFees(gross, DEFAULT_PLANS[plan], proc);

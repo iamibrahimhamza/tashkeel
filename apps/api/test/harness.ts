@@ -36,11 +36,11 @@ export async function startHarness(port: number, overrides: ProviderOverride[] =
   }
   await pg.exec(`
     INSERT INTO "Theme" (id, name, "nameAr", "isDefault", tokens) VALUES ('editorial-sand', 'Editorial Sand', 'رملي', true,
-      '{"colors":{"ink":"#19221E","paper":"#FAF8F6","sand":"#F3EFEA","accent":"#A98B4C","accentSoft":"#D4B87B","muted":"#6B6F69"},"fonts":{"display":"kufam","body":"plex"},"radius":"soft","mode":"light"}');
+      '{"colors":{"ink":"#19221E","paper":"#FAF8F6","sand":"#F3EFEA","accent":"#A98B4C","accentSoft":"#D4B87B","muted":"#6B6F69"},"fonts":{"display":"kufam","body":"readex"},"radius":"soft","mode":"light"}');
     INSERT INTO "Plan" (code, name, "nameAr", "monthlyMinor", "feeBps", "feeFixedMinor", "stripePriceId") VALUES
-      ('FREE', 'Starter', 'البداية', 0, 800, 0, NULL),
-      ('PRO', 'Pro', 'المحترف', 2900, 400, 0, 'price_pro'),
-      ('BUSINESS', 'Business', 'الأعمال', 7900, 150, 0, 'price_business');
+      ('FREE', 'Starter', 'البداية', 0, 400, 0, NULL),
+      ('PRO', 'Pro', 'المحترف', 900, 200, 0, 'price_pro'),
+      ('BUSINESS', 'Business', 'الأعمال', 1900, 0, 0, 'price_business');
   `);
 
   const server = new PGLiteSocketServer({ db: pg, port, host: "127.0.0.1" });

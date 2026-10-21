@@ -25,7 +25,7 @@ const THEMES: Array<{ id: string; name: string; nameAr: string; isDefault?: bool
     isDefault: true,
     tokens: {
       colors: { ink: "#19221E", paper: "#FAF8F6", sand: "#F3EFEA", accent: "#A98B4C", accentSoft: "#D4B87B", muted: "#6B6F69" },
-      fonts: { display: "kufam", body: "plex" },
+      fonts: { display: "kufam", body: "readex" },
       radius: "soft",
       mode: "light",
     },
@@ -36,7 +36,7 @@ const THEMES: Array<{ id: string; name: string; nameAr: string; isDefault?: bool
     nameAr: "غابة تحريرية",
     tokens: {
       colors: { ink: "#FAF8F6", paper: "#19221E", sand: "#222C27", accent: "#D4B87B", accentSoft: "#A98B4C", muted: "#A9ADA6" },
-      fonts: { display: "kufam", body: "plex" },
+      fonts: { display: "kufam", body: "readex" },
       radius: "soft",
       mode: "dark",
     },
@@ -47,7 +47,7 @@ const THEMES: Array<{ id: string; name: string; nameAr: string; isDefault?: bool
     nameAr: "عاجي",
     tokens: {
       colors: { ink: "#19221E", paper: "#FFFFFF", sand: "#FAF8F6", accent: "#A98B4C", accentSoft: "#E9DCC0", muted: "#6B6F69" },
-      fonts: { display: "readex", body: "plex" },
+      fonts: { display: "kufam", body: "readex" },
       radius: "none",
       mode: "light",
     },
@@ -55,9 +55,9 @@ const THEMES: Array<{ id: string; name: string; nameAr: string; isDefault?: bool
 ];
 
 const PLANS = [
-  { code: "FREE", name: "Starter", nameAr: "البداية", monthlyMinor: 0n, feeBps: 800 },
-  { code: "PRO", name: "Pro", nameAr: "المحترف", monthlyMinor: 2900n, feeBps: 400 },
-  { code: "BUSINESS", name: "Business", nameAr: "الأعمال", monthlyMinor: 7900n, feeBps: 150 },
+  { code: "FREE", name: "Starter", nameAr: "البداية", monthlyMinor: 0n, feeBps: 400 }, // $0 + 4%
+  { code: "PRO", name: "Pro", nameAr: "المحترف", monthlyMinor: 900n, feeBps: 200 }, // $9 + 2%
+  { code: "BUSINESS", name: "Business", nameAr: "الأعمال", monthlyMinor: 1900n, feeBps: 0 }, // $19 + 0%
 ] as const;
 
 async function seedPlatform() {

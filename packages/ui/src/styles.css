@@ -32,9 +32,10 @@
   --color-gold: #a98b4c;
   --color-gold-light: #d4b87b;
 
+  /* Kufam: display and headings. Readex Pro: body and UI text. */
   --font-display: var(--font-kufam), var(--font-readex), system-ui, sans-serif;
-  --font-heading: var(--font-readex), var(--font-plex), system-ui, sans-serif;
-  --font-body: var(--font-plex), var(--font-readex), system-ui, sans-serif;
+  --font-heading: var(--font-kufam), var(--font-readex), system-ui, sans-serif;
+  --font-body: var(--font-readex), system-ui, sans-serif;
 
   --radius-brand: var(--radius);
 }

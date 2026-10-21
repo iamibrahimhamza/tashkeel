@@ -58,8 +58,8 @@ describe("sandbox checkout", () => {
     expect(res.body.redirectUrl).toBe(`http://localhost:3000/founder/checkout/success?order=${c.orderId}`);
     await drain();
 
-    // Simulated Stripe fee: 2.9% + 30¢ of 100.00 = 3.20
-    expect(await prisma.order.findUniqueOrThrow({ where: { id: c.orderId } })).toMatchObject({ status: "PAID", processorFeeMinor: 320n, netMinor: 8880n });
+    // Simulated Stripe fee: 2.9% + 30¢ of 100.00 = 3.20; FREE plan fee 4% = 4.00
+    expect(await prisma.order.findUniqueOrThrow({ where: { id: c.orderId } })).toMatchObject({ status: "PAID", processorFeeMinor: 320n, netMinor: 9280n });
     expect(await prisma.webhookEvent.findFirst({ where: { provider: "sandbox", type: "checkout.session.completed" } })).toMatchObject({ status: "PROCESSED" });
     expect(await prisma.ledgerTransaction.count({ where: { kind: "ORDER_PAID", refId: c.orderId } })).toBe(1);
     expect(await prisma.entitlement.count({ where: { orderItem: { orderId: c.orderId }, status: "ACTIVE" } })).toBe(1);
@@ -98,7 +98,7 @@ describe("sandbox plan upgrade", () => {
     const start = await h.http().post(`/v1/workspaces/${workspaceId}/billing/checkout`).set(auth(owner)).set("Idempotency-Key", key()).send({ planCode: "PRO" });
     expect(start.status).toBe(201);
     const sessionId = (start.body.checkoutUrl as string).split("/pay/sandbox/")[1]!;
-    expect((await h.http().get(`/v1/sandbox/sessions/${sessionId}`)).body).toMatchObject({ kind: "subscription", amountMinor: "2900" });
+    expect((await h.http().get(`/v1/sandbox/sessions/${sessionId}`)).body).toMatchObject({ kind: "subscription", amountMinor: "900" });
 
     expect((await h.http().post(`/v1/sandbox/subscriptions/${sessionId}/decision`).set(auth(staff)).send({ decision: "approve" })).status).toBe(403);
     const ok = await h.http().post(`/v1/sandbox/subscriptions/${sessionId}/decision`).set(auth(owner)).send({ decision: "approve" });

@@ -1,4 +1,11 @@
 import type { NextConfig } from "next";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+
+// One .env for the whole monorepo: load the root file (API_URL, NEXT_PUBLIC_ROOT_DOMAIN, …).
+// Values already set in the environment (e.g. on the hosting platform) take precedence.
+const rootEnv = resolve(__dirname, "../../.env");
+if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
 const config: NextConfig = {
   reactStrictMode: true,

@@ -11,6 +11,7 @@ import { HealthController } from "./modules/health.controller";
 import { PayModule } from "./modules/pay/pay.module";
 import { InlineScheduler } from "./modules/scheduler.service";
 import { SitesController } from "./modules/sites/sites.controller";
+import { WaitlistController } from "./modules/waitlist/waitlist.controller";
 import { WorkspacesController } from "./modules/workspaces/workspaces.controller";
 
 @Module({
@@ -21,7 +22,7 @@ import { WorkspacesController } from "./modules/workspaces/workspaces.controller
     PayModule,
     BookingModule,
   ],
-  controllers: [HealthController, AuthController, WorkspacesController, SitesController],
+  controllers: [HealthController, AuthController, WorkspacesController, SitesController, WaitlistController],
   providers: [
     PrismaService,
     InlineScheduler,

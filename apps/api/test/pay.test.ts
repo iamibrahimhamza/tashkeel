@@ -84,7 +84,7 @@ describe("checkout", () => {
     expect(fake.sessions.at(-1)!.lineItems[0]!.unitAmountMinor).toBe(10000n);
 
     const order = await prisma.order.findUniqueOrThrow({ where: { id: first.body.orderId } });
-    expect(order).toMatchObject({ subtotalMinor: 10000n, platformFeeMinor: 800n, feeBpsSnapshot: 800, status: "PENDING" });
+    expect(order).toMatchObject({ subtotalMinor: 10000n, platformFeeMinor: 400n, feeBpsSnapshot: 400, status: "PENDING" });
 
     const sessionsBefore = fake.sessions.length;
     const retry = await checkout(ebookId, "buyer@example.com", k);
@@ -109,13 +109,13 @@ describe("stripe webhooks", () => {
   it("settles a paid order: ledger, fees, entitlement, CRM, emails", async () => {
     const { orderId } = await paidOrder();
     const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
-    expect(order).toMatchObject({ status: "PAID", processorFeeMinor: 320n, platformFeeMinor: 800n, netMinor: 8880n });
+    expect(order).toMatchObject({ status: "PAID", processorFeeMinor: 320n, platformFeeMinor: 400n, netMinor: 9280n });
 
     const item = await prisma.orderItem.findFirstOrThrow({ where: { orderId } });
     expect(await prisma.entitlement.findUnique({ where: { orderItemId: item.id } })).toMatchObject({ status: "ACTIVE" });
     expect(await prisma.contact.findUnique({ where: { workspaceId_email: { workspaceId, email: "buyer@example.com" } } })).toMatchObject({ lifetimeValueMinor: 10000n });
     expect(await prisma.emailOutbox.count({ where: { dedupeKey: { contains: orderId } } })).toBe(2);
-    expect(await balance()).toMatchObject({ currency: "USD", pendingMinor: "8880", availableMinor: "0" });
+    expect(await balance()).toMatchObject({ currency: "USD", pendingMinor: "9280", availableMinor: "0" });
     expect(await ledgerSumsToZero()).toBe(true);
   });
 
@@ -153,8 +153,8 @@ describe("refunds and disputes", () => {
     const { orderId, pi } = await paidOrder();
     await deliver("charge.refunded", { payment_intent: pi, amount_refunded: 5000 });
     expect(await prisma.order.findUniqueOrThrow({ where: { id: orderId } })).toMatchObject({ status: "PARTIALLY_REFUNDED", refundedMinor: 5000n });
-    // 8880 earned − (5000 refunded − 400 platform fee returned)
-    expect(BigInt((await balance()).pendingMinor) - before).toBe(4280n);
+    // 9280 earned − (5000 refunded − 200 platform fee returned)
+    expect(BigInt((await balance()).pendingMinor) - before).toBe(4480n);
 
     await deliver("charge.refunded", { payment_intent: pi, amount_refunded: 5000 }); // replay: no-op
     await deliver("charge.refunded", { payment_intent: pi, amount_refunded: 10000 });
@@ -194,7 +194,7 @@ describe("funds release", () => {
     const before = await balance();
     await deliver("charge.refunded", { payment_intent: pi, amount_refunded: 2000 });
     const after = await balance();
-    expect(BigInt(before.availableMinor) - BigInt(after.availableMinor)).toBe(2000n - 160n);
+    expect(BigInt(before.availableMinor) - BigInt(after.availableMinor)).toBe(2000n - 80n);
     expect(after.pendingMinor).toBe(before.pendingMinor);
   });
 });
@@ -290,7 +290,7 @@ describe("subscriptions and feeds", () => {
     await deliver("customer.subscription.updated", { id: "sub_1" });
     expect(await prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId } })).toMatchObject({ planCode: "PRO" });
     const c = await checkout();
-    expect(await prisma.order.findUniqueOrThrow({ where: { id: c.body.orderId } })).toMatchObject({ feeBpsSnapshot: 400, platformFeeMinor: 400n });
+    expect(await prisma.order.findUniqueOrThrow({ where: { id: c.body.orderId } })).toMatchObject({ feeBpsSnapshot: 200, platformFeeMinor: 200n });
   });
 
   it("serves the expert's ledger and orders as cursor pages", async () => {

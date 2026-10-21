@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { homeLink } from "@/lib/site";
 
 export const alt = "Tashkeel · تشكيل";
 export const size = { width: 1200, height: 630 };
@@ -25,7 +26,7 @@ export default async function OgImage({ params }: { params: Promise<{ slug: stri
             {cell("#A98B4C", true)}
           </div>
         </div>
-        <div style={{ display: "flex", fontSize: 56, color: "#D4B87B", letterSpacing: 1 }}>tashkeel.app/{decodeURIComponent(slug)}</div>
+        <div style={{ display: "flex", fontSize: 56, color: "#D4B87B", letterSpacing: 1 }}>{homeLink(decodeURIComponent(slug))}</div>
       </div>
     ),
     size,

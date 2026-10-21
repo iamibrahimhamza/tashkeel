@@ -7,7 +7,8 @@ import { AuthForm } from "../auth-form";
 export const metadata: Metadata = { title: "تسجيل الدخول", robots: { index: false } };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
-  const t = getDictionary(await getLocale()).auth;
+  const d = getDictionary(await getLocale());
+  const t = d.auth;
   const { next } = await searchParams;
   return (
     <>
@@ -23,7 +24,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         footer={
           <p className="text-center text-sm text-muted">
             {t.noAccount}{" "}
-            <a href="/signup" className="text-accent underline-offset-4 hover:underline">{t.signup}</a>
+            <a href="/#waitlist" className="text-accent underline-offset-4 hover:underline">{d.nav.join}</a>
           </p>
         }
       />

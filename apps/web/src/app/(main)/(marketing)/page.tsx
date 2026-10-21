@@ -1,7 +1,7 @@
 import { getDictionary, type Dictionary } from "@tashkeel/i18n";
 import { ButtonLink, Container, cx, Logo, LogoMark, SectionHeading } from "@tashkeel/ui";
-import type { ReactNode } from "react";
 import { getLocale } from "@/lib/locale";
+import { WaitlistForm } from "./waitlist-form";
 
 export default async function LandingPage() {
   const locale = await getLocale();
@@ -13,6 +13,7 @@ export default async function LandingPage() {
         <Hero t={t} />
         <Problem t={t} />
         <Pillars t={t} />
+        <ComingSoon t={t} />
         <Pay t={t} />
         <Steps t={t} />
         <Pricing t={t} />
@@ -36,8 +37,8 @@ function SiteHeader({ t }: { t: Dictionary }) {
           <a href="#pricing" className="hover:text-ink">{t.nav.pricing}</a>
         </nav>
         <div className="flex items-center gap-2">
-          <a href="/login" className="hidden px-3 font-heading text-[0.95rem] sm:inline">{t.nav.login}</a>
-          <ButtonLink href="/signup" className="px-5 py-2.5">{t.nav.start}</ButtonLink>
+          <a href="/login" className="px-3 font-heading text-[0.95rem]">{t.nav.login}</a>
+          <ButtonLink href="#waitlist" className="hidden px-5 py-2.5 sm:inline-flex">{t.nav.join}</ButtonLink>
         </div>
       </Container>
     </header>
@@ -55,78 +56,22 @@ function Hero({ t }: { t: Dictionary }) {
           </p>
           <h1 className="font-display text-[2.4rem] leading-[1.4] sm:text-[3.4rem] sm:leading-[1.35]">{t.hero.title}</h1>
           <p className="mt-7 max-w-xl text-lg leading-9 text-muted">{t.hero.lead}</p>
-
-          <form action="/signup" className="mt-10 flex max-w-lg flex-col gap-3 sm:flex-row" dir="ltr">
-            <label className="flex min-w-0 flex-1 items-center rounded-full border border-ink/15 bg-white/70 ps-5 focus-within:border-accent">
-              <span className="select-none text-muted">{t.hero.slugPrefix}</span>
-              <input
-                name="slug"
-                aria-label={t.hero.slugPlaceholder}
-                placeholder={t.hero.slugPlaceholder}
-                pattern="[a-z0-9-]{3,40}"
-                className="min-w-0 flex-1 bg-transparent py-3.5 pe-4 text-ink outline-none placeholder:text-muted/60"
-              />
-            </label>
-            <button className="rounded-full bg-ink px-7 py-3.5 font-heading font-medium text-paper transition hover:opacity-90">{t.hero.primary}</button>
-          </form>
-          <a href="#pillars" className="mt-5 inline-flex items-center gap-2 font-heading text-sm text-accent underline-offset-4 hover:underline">
+          <a href="#pillars" className="mt-8 inline-flex items-center gap-2 font-heading text-sm text-accent underline-offset-4 hover:underline">
             {t.hero.secondary}
           </a>
         </div>
 
-        <HeroAnatomy t={t} />
+        <div id="waitlist" className="relative mx-auto w-full max-w-md scroll-mt-24">
+          <div className="absolute -inset-5 -z-10 rounded-[28px] bg-sand" />
+          <div className="rounded-[22px] border border-line bg-paper p-7 shadow-[0_30px_80px_-40px_rgba(25,34,30,.45)]">
+            <h2 className="font-display text-2xl">{t.waitlist.title}</h2>
+            <p className="mb-6 mt-2 text-sm leading-7 text-muted">{t.waitlist.body}</p>
+            <WaitlistForm t={t.waitlist} />
+          </div>
+        </div>
       </Container>
       <div className="rule" />
     </section>
-  );
-}
-
-/**
- * The anatomy of a digital home: which pillar each part of the page is. Purely structural —
- * no names, prices or figures, because Tashkeel never shows invented data.
- */
-function HeroAnatomy({ t }: { t: Dictionary }) {
-  const [home, consult, assets, blog] = t.pillars.items;
-  const line = (w: string) => <span className={cx("block h-2 rounded-full bg-ink/10", w)} />;
-  return (
-    <div className="relative mx-auto w-full max-w-md" aria-hidden="true">
-      <div className="absolute -inset-6 -z-10 rounded-[28px] bg-sand" />
-      <div className="overflow-hidden rounded-[22px] border border-line bg-paper shadow-[0_30px_80px_-40px_rgba(25,34,30,.45)]">
-        <div className="flex items-center gap-2 border-b border-line px-5 py-3 text-xs text-muted" dir="ltr">
-          <span className="size-2 rounded-full bg-ink/15" />
-          <span className="size-2 rounded-full bg-ink/15" />
-          <span className="size-2 rounded-full bg-ink/15" />
-          <span className="ms-3 rounded-full bg-sand px-3 py-1">
-            {t.hero.slugPrefix}
-            <span className="text-accent">{t.hero.slugPlaceholder}</span>
-          </span>
-        </div>
-        <div className="grid gap-3 p-6">
-          <AnatomyPart label={home!.title} tone="ink">
-            <span className="block h-3 w-2/3 rounded-full bg-paper/30" />
-            <span className="mt-2 block h-2 w-5/6 rounded-full bg-paper/15" />
-          </AnatomyPart>
-          <div className="grid grid-cols-2 gap-3">
-            <AnatomyPart label={consult!.title}>{line("w-4/5")}{line("mt-2 w-3/5")}</AnatomyPart>
-            <AnatomyPart label={assets!.title}>{line("w-3/4")}{line("mt-2 w-1/2")}</AnatomyPart>
-          </div>
-          <AnatomyPart label={blog!.title}>{line("w-full")}{line("mt-2 w-4/5")}{line("mt-2 w-2/3")}</AnatomyPart>
-          <div className="flex items-center justify-between rounded-xl bg-forest px-4 py-3">
-            <span className="font-heading text-xs text-gold-light">{t.pay.eyebrow}</span>
-            <LogoMark size={18} tone="paper" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AnatomyPart({ label, tone = "paper", children }: { label: string; tone?: "paper" | "ink"; children: ReactNode }) {
-  return (
-    <div className={cx("rounded-xl p-4", tone === "ink" ? "bg-ink text-paper" : "border border-line")}>
-      <p className={cx("mb-3 font-heading text-xs", tone === "ink" ? "text-gold-light" : "text-accent")}>{label}</p>
-      {children}
-    </div>
   );
 }
 
@@ -187,6 +132,26 @@ function Pillars({ t }: { t: Dictionary }) {
             </li>
           ))}
         </ol>
+      </Container>
+    </section>
+  );
+}
+
+/** What is not live yet, labelled plainly so the page never promises more than Beta v1 does. */
+function ComingSoon({ t }: { t: Dictionary }) {
+  return (
+    <section className="py-20 sm:py-28">
+      <Container>
+        <SectionHeading index={t.soon.index} eyebrow={t.soon.eyebrow} title={t.soon.title} lead={t.soon.lead} />
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {t.soon.items.map((s) => (
+            <article key={s.k} className="rounded-[18px] border border-dashed border-line p-6">
+              <span className="inline-block rounded-full bg-sand px-3 py-1 font-heading text-xs text-accent">{t.soon.badge}</span>
+              <h3 className="mt-4 text-lg font-semibold">{s.title}</h3>
+              <p className="mt-2 text-sm leading-7 text-muted">{s.body}</p>
+            </article>
+          ))}
+        </div>
       </Container>
     </section>
   );
@@ -263,13 +228,14 @@ function Pricing({ t }: { t: Dictionary }) {
                     </li>
                   ))}
                 </ul>
-                <a href={`/signup?plan=${p.code}`} className={cx("mt-8 rounded-full py-3 text-center font-heading font-medium transition", featured ? "bg-gold text-forest hover:brightness-105" : "border border-ink/20 hover:border-ink/50")}>
+                <a href="#waitlist" className={cx("mt-8 rounded-full py-3 text-center font-heading font-medium transition", featured ? "bg-gold text-forest hover:brightness-105" : "border border-ink/20 hover:border-ink/50")}>
                   {t.pricing.cta}
                 </a>
               </article>
             );
           })}
         </div>
+        <p className="mt-6 text-center text-sm text-muted">{t.pricing.note}</p>
       </Container>
     </section>
   );
@@ -282,7 +248,7 @@ function FinalCta({ t }: { t: Dictionary }) {
         <LogoMark size={44} className="mx-auto" />
         <h2 className="mx-auto mt-8 max-w-2xl font-display text-4xl leading-snug sm:text-5xl">{t.cta.title}</h2>
         <p className="mt-4 text-muted">{t.cta.body}</p>
-        <ButtonLink href="/signup" className="mt-9 px-9">{t.cta.button}</ButtonLink>
+        <ButtonLink href="#waitlist" className="mt-9 px-9">{t.cta.button}</ButtonLink>
       </Container>
     </section>
   );

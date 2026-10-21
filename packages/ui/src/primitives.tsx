@@ -72,7 +72,7 @@ export function SectionHeading({ index, eyebrow, title, lead, align = "start" }:
 /** Maps theme tokens to the CSS variables the design system reads. */
 export function themeStyle(t: ThemeTokens): CSSProperties {
   const radius = { none: "2px", soft: "14px", round: "24px" }[t.radius];
-  const font = { kufam: "var(--font-kufam)", readex: "var(--font-readex)", plex: "var(--font-plex)" };
+  const font = { kufam: "var(--font-kufam)", readex: "var(--font-readex)" };
   return {
     "--ink": t.colors.ink,
     "--paper": t.colors.paper,
