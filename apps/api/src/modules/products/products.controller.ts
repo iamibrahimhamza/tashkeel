@@ -140,7 +140,9 @@ export class ProductsController {
   @Post(":productId/cover")
   async requestCover(@CurrentWorkspace() ws: WorkspaceContext, @Param("productId") productId: string, @ValidBody(RequestCoverUploadInput) input: RequestCoverUploadInput): Promise<UploadTicket> {
     const p = await this.product(ws.id, productId);
-    const key = `ws/${ws.id}/covers/${p.id}/${randomBytes(8).toString("hex")}`;
+    // The extension lets the local driver serve the right Content-Type (S3 keeps the uploaded one).
+    const ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }[input.mime];
+    const key = `ws/${ws.id}/covers/${p.id}/${randomBytes(8).toString("hex")}.${ext}`;
     const uploadUrl = await this.storage.presignUpload(key, { mime: input.mime, sizeBytes: input.sizeBytes, expiresInSec: UPLOAD_URL_SEC });
     return { fileId: key, uploadUrl, mime: input.mime, expiresAt: new Date(Date.now() + UPLOAD_URL_SEC * 1000).toISOString() };
   }
@@ -172,6 +174,8 @@ export class PublicCoversController {
 
   @Public()
   @Header("Cache-Control", "public, max-age=3000")
+  // Covers are embedded on the web app's origin; helmet's default (same-origin) would block the image.
+  @Header("Cross-Origin-Resource-Policy", "cross-origin")
   @Get(":productId/cover")
   async cover(@Param("productId") productId: string, @Res() res: Response) {
     const p = await this.prisma.db.product.findUnique({ where: { id: productId }, select: { coverKey: true, status: true } });

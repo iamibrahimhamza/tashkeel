@@ -125,6 +125,8 @@ export class LocalStorageController {
     const f = verify(q, "get");
     const path = pathFor(f.key!);
     res.setHeader("Content-Disposition", contentDisposition(f.name ?? "file", f.inline === "1"));
+    // Like an S3 presigned GET: readable from the web app's origin (covers are shown in <img>).
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
     res.sendFile(path, (err) => {
       if (err && !res.headersSent) res.status(404).json({ error: { code: "NOT_FOUND", message: "File not found" } });
     });
