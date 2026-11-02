@@ -15,8 +15,9 @@ next-env.d.ts
 *.key
 *.p12
 
-# Local databases
+# Local databases and files
 .pglite
+.storage
 *.db
 *.sqlite
 
