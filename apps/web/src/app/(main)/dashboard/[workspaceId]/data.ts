@@ -1,5 +1,5 @@
 import "server-only";
-import type { Balance, BookingDto, ContactDetailDto, ContactDto, OrderDto, PayoutDto, ProductDto } from "@tashkeel/contracts";
+import type { Balance, BookingDto, ContactDetailDto, ContactDto, OrderDto, PayoutDto, ProductDetailDto, ProductDto } from "@tashkeel/contracts";
 import { api } from "@/lib/api";
 
 type Page<T> = { data: T[]; nextCursor: string | null };
@@ -14,6 +14,7 @@ export const dashboardData = (token: string, workspaceId: string) => {
     contact: (contactId: string) => api<ContactDetailDto>(`${w}/contacts/${encodeURIComponent(contactId)}`, { token }),
     bookings: () => api<{ data: BookingDto[] }>(`${w}/bookings`, { token }).then((r) => r.data),
     products: () => api<{ data: ProductDto[] }>(`${w}/products`, { token }).then((r) => r.data),
+    product: (productId: string) => api<ProductDetailDto>(`${w}/products/${encodeURIComponent(productId)}`, { token }),
     payouts: () => api<{ data: PayoutDto[] }>(`${w}/payouts`, { token }).then((r) => r.data),
     profiles: () => api<{ data: Array<{ id: string; method: string; label: string; maskedHint: string; isDefault: boolean }> }>(`${w}/payout-profiles`, { token }).then((r) => r.data),
     billing: () =>
