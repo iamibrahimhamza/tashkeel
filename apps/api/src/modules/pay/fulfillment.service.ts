@@ -50,8 +50,8 @@ export class FulfillmentService {
         );
       }
 
-      const items = await tx.orderItem.findMany({ where: { orderId: order.id }, include: { booking: true } });
-      const bookingsConfirmed: Array<{ id: string; startsAt: Date; endsAt: Date; customerTz: string }> = [];
+      const items = await tx.orderItem.findMany({ where: { orderId: order.id }, include: { booking: { include: { service: { select: { meetingUrl: true } } } } } });
+      const bookingsConfirmed: Array<{ id: string; startsAt: Date; endsAt: Date; customerTz: string; meetingUrl: string | null }> = [];
       for (const item of items) {
         if (item.productId) {
           await tx.entitlement.upsert({
@@ -62,8 +62,9 @@ export class FulfillmentService {
         }
         if (item.booking) {
           if (bookingMachine.can(item.booking.status, "CONFIRMED")) {
-            await tx.booking.update({ where: { id: item.booking.id }, data: { status: "CONFIRMED", holdExpiresAt: null } });
-            bookingsConfirmed.push(item.booking);
+            const meetingUrl = item.booking.service.meetingUrl;
+            await tx.booking.update({ where: { id: item.booking.id }, data: { status: "CONFIRMED", holdExpiresAt: null, meetingUrl } });
+            bookingsConfirmed.push({ ...item.booking, meetingUrl });
           } else if (item.booking.status !== "CONFIRMED") {
             // Paid after the hold expired and the slot was released: needs a human (refund or reschedule).
             this.log.warn(`order ${order.id} paid for booking ${item.booking.id} in status ${item.booking.status}`);
@@ -86,7 +87,7 @@ export class FulfillmentService {
         const ws = await tx.workspace.findUniqueOrThrow({ where: { id: order.workspaceId }, select: { name: true, timezone: true } });
         const title = items.find((i) => i.bookingId)?.title ?? "";
         for (const b of bookingsConfirmed) {
-          const when = { startsAt: b.startsAt.toISOString(), endsAt: b.endsAt.toISOString(), title, expert: ws.name };
+          const when = { bookingId: b.id, startsAt: b.startsAt.toISOString(), endsAt: b.endsAt.toISOString(), title, expert: ws.name, meetingUrl: b.meetingUrl };
           await tx.emailOutbox.createMany({
             skipDuplicates: true,
             data: [

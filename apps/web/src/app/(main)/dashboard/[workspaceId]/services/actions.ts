@@ -17,6 +17,7 @@ export type ServiceForm = {
   bufferAfterMin: number;
   price: string; // major units, USD
   locationType: "VIDEO" | "IN_PERSON" | "PHONE";
+  meetingUrl: string;
   minNoticeHours: number;
   maxAdvanceDays: number;
   isActive: boolean;
@@ -46,6 +47,8 @@ function toBody(f: ServiceForm) {
     priceMinor: parseMajor(f.price || "0", "USD").toString(),
     currency: "USD",
     locationType: f.locationType,
+    // Only video sessions carry a link; switching format clears it.
+    meetingUrl: f.locationType === "VIDEO" && f.meetingUrl.trim() ? f.meetingUrl.trim() : null,
     minNoticeMin: Math.round(f.minNoticeHours * 60),
     maxAdvanceDays: f.maxAdvanceDays,
     isActive: f.isActive,

@@ -19,6 +19,7 @@ export function serviceDto(s: Service): ServiceDto {
     priceMinor: s.priceMinor.toString(),
     currency: s.currency,
     locationType: s.locationType,
+    meetingUrl: s.meetingUrl,
     minNoticeMin: s.minNoticeMin,
     maxAdvanceDays: s.maxAdvanceDays,
     isActive: s.isActive,

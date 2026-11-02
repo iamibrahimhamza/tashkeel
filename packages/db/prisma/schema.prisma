@@ -53,6 +53,7 @@ model User {
   pageVersions   PageVersion[]
   posts          Post[]            @relation("PostAuthor")
   auditLogs      AuditLog[]
+  contactNotes   ContactNote[]    @relation("ContactNoteAuthor")
 }
 
 model Account {
@@ -221,6 +222,7 @@ model Service {
   priceMinor     BigInt
   currency       String       @default("USD")
   locationType   LocationType @default(VIDEO)
+  meetingUrl     String? // the expert's standing link (Meet, Zoom…); copied onto bookings at confirmation
   minNoticeMin   Int          @default(720)
   maxAdvanceDays Int          @default(60)
   isActive       Boolean      @default(true)
@@ -283,6 +285,7 @@ model Booking {
 
   @@index([workspaceId, startsAt])
   @@index([status, holdExpiresAt])
+  @@index([status, startsAt])
 }
 
 // ───────────────────────── Module C — Digital Assets & LMS ─────────────────────────
@@ -790,6 +793,9 @@ model ContactNote {
   body      String
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  author    User     @relation("ContactNoteAuthor", fields: [authorId], references: [id])
+
+  @@index([contactId, createdAt])
 }
 
 model ActivityEvent {

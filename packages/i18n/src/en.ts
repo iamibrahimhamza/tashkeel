@@ -160,6 +160,12 @@ export const en: Widen<Dictionary> = {
     payouts: { title: "Earnings & payouts", request: "Request payout", amount: "Amount", to: "To", submit: "Send request", profiles: "Payout methods", addProfile: "Add payout method", label: "Short name", saveProfile: "Save method", history: "Payout history", cancel: "Cancel", minimum: "Minimum payout is $20" },
     billing: { title: "Plan", current: "Current plan", fee: "transaction fee", upgrade: "Upgrade", currentBadge: "Your plan" },
     admin: { title: "Admin", payouts: "Payout requests", waitlist: "Waitlist", settings: "Payment settings", approve: "Approve (compliance checked)", markPaid: "Confirm transfer", fail: "Transfer failed", reason: "Reason", reference: "Transfer reference", destination: "Destination", history: "Status history" },
+    client: {
+      back: "All clients", since: "Client since", sessions: "Sessions", purchases: "Purchases", activity: "Activity",
+      notes: "Private notes", notesHint: "Never shown to the client. Write down what you want to remember before your next session.", notePlaceholder: "What do you want to remember about this client?",
+      addNote: "Save note", delete: "Delete", noSessions: "No sessions booked yet.", noPurchases: "No purchases yet.", noActivity: "No activity recorded yet.", noNotes: "No notes yet.",
+      types: { ORDER_PAID: "Completed a payment", REFUNDED: "Received a refund", DISPUTE_LOST: "Disputed a payment" },
+    },
   },
   sandbox: {
     banner: "Sandbox mode — no real money moves",

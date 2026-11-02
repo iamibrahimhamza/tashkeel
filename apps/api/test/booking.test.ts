@@ -3,7 +3,9 @@ import type { PrismaClient } from "@tashkeel/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaService } from "../src/common/prisma.service";
 import { InlineQueue, JOB_QUEUE } from "../src/common/queue";
+import { renderEmail } from "../src/common/email";
 import { HoldsService } from "../src/modules/booking/holds.service";
+import { RemindersService } from "../src/modules/booking/reminders.service";
 import { startHarness, type Harness } from "./harness";
 
 let h: Harness;
@@ -27,6 +29,14 @@ const day = (() => {
 })();
 
 const slots = (tz: string, from = day, to = day, sid = serviceId) => h.http().get(`/v1/public/homes/booker/services/${sid}/slots?from=${from}&to=${to}&tz=${encodeURIComponent(tz)}`);
+/** Slot start times, failing with the response itself when the request did not succeed or came back empty. */
+const slotStarts = async (...args: Parameters<typeof slots>): Promise<string[]> => {
+  const res = await slots(...args);
+  expect(res.status, JSON.stringify(res.body)).toBe(200);
+  const starts = (res.body.slots as { startsAt: string }[]).map((s) => s.startsAt);
+  expect(starts.length, `no slots for ${JSON.stringify(args)}`).toBeGreaterThan(0);
+  return starts;
+};
 const book = (startsAt: string, opts: { k?: string; email?: string; sid?: string } = {}) =>
   h.http()
     .post("/v1/public/bookings")
@@ -112,7 +122,7 @@ describe("holds and checkout", () => {
   let firstSlot: string;
 
   it("holds a slot for 10 minutes and opens sandbox checkout", async () => {
-    firstSlot = (await slots(EXPERT_TZ)).body.slots[0].startsAt;
+    firstSlot = (await slotStarts(EXPERT_TZ))[0]!;
     const res = await book(firstSlot);
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ status: "PENDING_PAYMENT", checkoutUrl: expect.stringContaining("/pay/sandbox/") });
@@ -127,7 +137,7 @@ describe("holds and checkout", () => {
 
   it("refuses a second booking for the same time, including concurrent attempts", async () => {
     expect((await book(firstSlot, { email: "other@example.com" })).status).toBe(409);
-    const next = (await slots(EXPERT_TZ)).body.slots.at(-1).startsAt;
+    const next = (await slotStarts(EXPERT_TZ)).at(-1)!;
     const [a, b] = await Promise.all([book(next, { email: "a@example.com" }), book(next, { email: "b@example.com" })]);
     expect([a.status, b.status].sort()).toEqual([201, 409]);
   });
@@ -141,7 +151,7 @@ describe("holds and checkout", () => {
 
   it("is idempotent per Idempotency-Key", async () => {
     const nextMonday = addDays(day, 7);
-    const free = (await slots(EXPERT_TZ, nextMonday, nextMonday)).body.slots[0].startsAt;
+    const free = (await slotStarts(EXPERT_TZ, nextMonday, nextMonday))[0]!;
     const k = key();
     const one = await book(free, { k, email: "idem@example.com" });
     const two = await book(free, { k, email: "idem@example.com" });
@@ -155,7 +165,7 @@ describe("holds and checkout", () => {
     const b = await prisma.booking.findFirstOrThrow({ where: { startsAt: new Date(firstSlot), customer: { email: "client@example.com" } }, include: { orderItem: { include: { order: true } } } });
     expect(b.status).toBe("CANCELLED");
     expect(b.orderItem?.order.status).toBe("EXPIRED");
-    expect((await slots(EXPERT_TZ)).body.slots.map((s: { startsAt: string }) => s.startsAt)).toContain(firstSlot);
+    expect(await slotStarts(EXPERT_TZ)).toContain(firstSlot);
   });
 
   it("confirms the booking when the sandbox payment is approved", async () => {
@@ -175,8 +185,61 @@ describe("holds and checkout", () => {
   });
 
   it("confirms free sessions immediately without checkout", async () => {
-    const freeSlot = (await slots(EXPERT_TZ, day, day, freeServiceId)).body.slots.at(-1).startsAt;
+    const freeSlot = (await slotStarts(EXPERT_TZ, day, day, freeServiceId)).at(-1)!;
     const res = await book(freeSlot, { sid: freeServiceId, email: "free@example.com" });
     expect(res.body).toMatchObject({ status: "CONFIRMED", checkoutUrl: null, holdExpiresAt: null });
+  });
+});
+
+describe("confirmation details", () => {
+  const link = "https://meet.google.com/abc-defg-hij";
+  let bookingId: string;
+  let startsAt: Date;
+
+  it("stores an https meeting link on the service and keeps it off the public page", async () => {
+    const insecure = await h.http().patch(`/v1/workspaces/${workspaceId}/services/${freeServiceId}`).set(auth(owner)).send({ meetingUrl: "http://meet.example.com/x" });
+    expect(insecure.status).toBe(422);
+    const ok = await h.http().patch(`/v1/workspaces/${workspaceId}/services/${freeServiceId}`).set(auth(owner)).send({ meetingUrl: link });
+    expect(ok.body.meetingUrl).toBe(link);
+    expect(JSON.stringify((await h.http().get(`/v1/public/homes/booker/services/${freeServiceId}`)).body)).not.toContain(link);
+  });
+
+  it("copies the link onto the confirmed booking and attaches a calendar invite", async () => {
+    const slot = (await slotStarts(EXPERT_TZ, day, day, freeServiceId))[0]!;
+    const res = await book(slot, { sid: freeServiceId, email: "invite@example.com" });
+    expect(res.body.status).toBe("CONFIRMED");
+    bookingId = res.body.bookingId;
+    const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+    expect(booking.meetingUrl).toBe(link);
+    startsAt = booking.startsAt;
+
+    const rows = await prisma.emailOutbox.findMany({ where: { dedupeKey: { in: [`booking:customer:${bookingId}`, `booking:expert:${bookingId}`] } } });
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      const mail = renderEmail(row);
+      expect(mail.text).toContain(link);
+      const ics = mail.attachments?.[0]?.content.replace(/\r\n /g, "") ?? "";
+      expect(ics).toContain(`UID:${bookingId}@tashkeel`);
+      expect(ics).toContain(`DTSTART:${startsAt.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")}`);
+      expect(ics).toContain(`URL:${link}`);
+    }
+  });
+
+  it("queues each reminder once, for the client and the expert", async () => {
+    const reminders = h.app.get(RemindersService);
+    const before = (hours: number) => new Date(startsAt.getTime() - hours * 3_600_000);
+    const queued = () => prisma.emailOutbox.count({ where: { template: "booking_reminder", dedupeKey: { contains: bookingId } } });
+    await reminders.queueDue(before(30));
+    expect(await queued()).toBe(0);
+    await reminders.queueDue(before(23));
+    expect(await queued()).toBe(2);
+    await reminders.queueDue(before(22));
+    expect(await queued()).toBe(2); // already queued, not repeated
+    await reminders.queueDue(before(0.5));
+    expect(await queued()).toBe(4);
+    const rows = await prisma.emailOutbox.findMany({ where: { template: "booking_reminder", dedupeKey: { contains: bookingId } }, orderBy: { dedupeKey: "asc" } });
+    expect(rows.map((r) => r.dedupeKey)).toEqual([`reminder:1h:customer:${bookingId}`, `reminder:1h:expert:${bookingId}`, `reminder:24h:customer:${bookingId}`, `reminder:24h:expert:${bookingId}`]);
+    expect(renderEmail(rows[0]!).subject).toContain("بعد ساعة");
+    expect(renderEmail(rows[0]!).text).toContain(link);
   });
 });

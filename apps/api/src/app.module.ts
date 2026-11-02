@@ -7,6 +7,7 @@ import { IdempotencyInterceptor } from "./common/idempotency";
 import { PrismaService } from "./common/prisma.service";
 import { AuthController } from "./modules/auth/auth.controller";
 import { BookingModule } from "./modules/booking/booking.module";
+import { CrmController } from "./modules/crm/crm.controller";
 import { HealthController } from "./modules/health.controller";
 import { PayModule } from "./modules/pay/pay.module";
 import { InlineScheduler } from "./modules/scheduler.service";
@@ -22,7 +23,7 @@ import { WorkspacesController } from "./modules/workspaces/workspaces.controller
     PayModule,
     BookingModule,
   ],
-  controllers: [HealthController, AuthController, WorkspacesController, SitesController, WaitlistController],
+  controllers: [HealthController, AuthController, WorkspacesController, SitesController, WaitlistController, CrmController],
   providers: [
     PrismaService,
     InlineScheduler,
