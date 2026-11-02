@@ -27,6 +27,14 @@ const day = (() => {
 })();
 
 const slots = (tz: string, from = day, to = day, sid = serviceId) => h.http().get(`/v1/public/homes/booker/services/${sid}/slots?from=${from}&to=${to}&tz=${encodeURIComponent(tz)}`);
+/** Slot start times, failing with the response itself when the request did not succeed or came back empty. */
+const slotStarts = async (...args: Parameters<typeof slots>): Promise<string[]> => {
+  const res = await slots(...args);
+  expect(res.status, JSON.stringify(res.body)).toBe(200);
+  const starts = (res.body.slots as { startsAt: string }[]).map((s) => s.startsAt);
+  expect(starts.length, `no slots for ${JSON.stringify(args)}`).toBeGreaterThan(0);
+  return starts;
+};
 const book = (startsAt: string, opts: { k?: string; email?: string; sid?: string } = {}) =>
   h.http()
     .post("/v1/public/bookings")
@@ -112,7 +120,7 @@ describe("holds and checkout", () => {
   let firstSlot: string;
 
   it("holds a slot for 10 minutes and opens sandbox checkout", async () => {
-    firstSlot = (await slots(EXPERT_TZ)).body.slots[0].startsAt;
+    firstSlot = (await slotStarts(EXPERT_TZ))[0]!;
     const res = await book(firstSlot);
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ status: "PENDING_PAYMENT", checkoutUrl: expect.stringContaining("/pay/sandbox/") });
@@ -127,7 +135,7 @@ describe("holds and checkout", () => {
 
   it("refuses a second booking for the same time, including concurrent attempts", async () => {
     expect((await book(firstSlot, { email: "other@example.com" })).status).toBe(409);
-    const next = (await slots(EXPERT_TZ)).body.slots.at(-1).startsAt;
+    const next = (await slotStarts(EXPERT_TZ)).at(-1)!;
     const [a, b] = await Promise.all([book(next, { email: "a@example.com" }), book(next, { email: "b@example.com" })]);
     expect([a.status, b.status].sort()).toEqual([201, 409]);
   });
@@ -141,7 +149,7 @@ describe("holds and checkout", () => {
 
   it("is idempotent per Idempotency-Key", async () => {
     const nextMonday = addDays(day, 7);
-    const free = (await slots(EXPERT_TZ, nextMonday, nextMonday)).body.slots[0].startsAt;
+    const free = (await slotStarts(EXPERT_TZ, nextMonday, nextMonday))[0]!;
     const k = key();
     const one = await book(free, { k, email: "idem@example.com" });
     const two = await book(free, { k, email: "idem@example.com" });
@@ -155,7 +163,7 @@ describe("holds and checkout", () => {
     const b = await prisma.booking.findFirstOrThrow({ where: { startsAt: new Date(firstSlot), customer: { email: "client@example.com" } }, include: { orderItem: { include: { order: true } } } });
     expect(b.status).toBe("CANCELLED");
     expect(b.orderItem?.order.status).toBe("EXPIRED");
-    expect((await slots(EXPERT_TZ)).body.slots.map((s: { startsAt: string }) => s.startsAt)).toContain(firstSlot);
+    expect(await slotStarts(EXPERT_TZ)).toContain(firstSlot);
   });
 
   it("confirms the booking when the sandbox payment is approved", async () => {
@@ -175,7 +183,7 @@ describe("holds and checkout", () => {
   });
 
   it("confirms free sessions immediately without checkout", async () => {
-    const freeSlot = (await slots(EXPERT_TZ, day, day, freeServiceId)).body.slots.at(-1).startsAt;
+    const freeSlot = (await slotStarts(EXPERT_TZ, day, day, freeServiceId)).at(-1)!;
     const res = await book(freeSlot, { sid: freeServiceId, email: "free@example.com" });
     expect(res.body).toMatchObject({ status: "CONFIRMED", checkoutUrl: null, holdExpiresAt: null });
   });

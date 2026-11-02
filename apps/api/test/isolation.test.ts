@@ -20,7 +20,8 @@ async function expert(email: string, slug: string) {
   return { token, id: ws.body.id as string };
 }
 
-type Route = { method: string; path: string };
+type Route = { method: "get" | "post" | "put" | "patch" | "delete"; path: string };
+const call = (r: Route, path: string) => h.http()[r.method](path);
 
 /** Reads registered routes off the Express 5 router. */
 function workspaceRoutes(): Route[] {
@@ -28,7 +29,7 @@ function workspaceRoutes(): Route[] {
   const out: Route[] = [];
   for (const layer of express.router.stack) {
     if (!layer.route || !layer.route.path.includes(":workspaceId")) continue;
-    for (const [method, on] of Object.entries(layer.route.methods)) if (on && method !== "_all") out.push({ method, path: layer.route.path });
+    for (const [method, on] of Object.entries(layer.route.methods)) if (on && method !== "_all") out.push({ method: method as Route["method"], path: layer.route.path });
   }
   return out;
 }
@@ -52,7 +53,7 @@ describe("tenant isolation", () => {
     const leaks: string[] = [];
     for (const r of workspaceRoutes()) {
       const path = r.path.replace(":workspaceId", alpha.id).replace(/:[A-Za-z]+/g, "does-not-exist");
-      const res = await (h.http() as unknown as Record<string, (p: string) => import("supertest").Test>)[r.method](path)
+      const res = await call(r, path)
         .set(auth(beta.token))
         .set("Idempotency-Key", key())
         .send({});
@@ -65,7 +66,7 @@ describe("tenant isolation", () => {
     const open: string[] = [];
     for (const r of workspaceRoutes()) {
       const path = r.path.replace(":workspaceId", alpha.id).replace(/:[A-Za-z]+/g, "x");
-      const res = await (h.http() as unknown as Record<string, (p: string) => import("supertest").Test>)[r.method](path).send({});
+      const res = await call(r, path).send({});
       if (res.status !== 401) open.push(`${r.method.toUpperCase()} ${r.path} → ${res.status}`);
     }
     expect(open).toEqual([]);
