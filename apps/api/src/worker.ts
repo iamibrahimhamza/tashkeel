@@ -8,6 +8,7 @@ import { env } from "./config/env";
 import { FulfillmentService } from "./modules/pay/fulfillment.service";
 import { BookingModule } from "./modules/booking/booking.module";
 import { HoldsService } from "./modules/booking/holds.service";
+import { RemindersService } from "./modules/booking/reminders.service";
 import { PayModule } from "./modules/pay/pay.module";
 import { PayoutEventsProcessor } from "./modules/pay/payout-events.processor";
 import { StripeEventsProcessor } from "./modules/pay/stripe-events.processor";
@@ -32,6 +33,7 @@ async function main() {
   const fulfillment = app.get(FulfillmentService);
   const email = app.get(EmailRelay);
   const holds = app.get(HoldsService);
+  const reminders = app.get(RemindersService);
 
   const workers = [
     new Worker(QUEUES.stripeEvents, (job) => stripe.handle(job.data.id), { connection, concurrency: 8 }),
@@ -42,6 +44,7 @@ async function main() {
         if (job.name === "release-funds") await runReleaseFunds(fulfillment, log);
         if (job.name === "email-relay") await email.relayBatch(100);
         if (job.name === "expire-holds") await holds.expireDue();
+        if (job.name === "session-reminders") await reminders.queueDue();
       },
       { connection, concurrency: 1 },
     ),
@@ -52,6 +55,7 @@ async function main() {
   await maintenance.upsertJobScheduler("release-funds", { every: SCHEDULES.releaseFundsMs }, { name: "release-funds" });
   await maintenance.upsertJobScheduler("email-relay", { every: SCHEDULES.emailRelayMs }, { name: "email-relay" });
   await maintenance.upsertJobScheduler("expire-holds", { every: SCHEDULES.expireHoldsMs }, { name: "expire-holds" });
+  await maintenance.upsertJobScheduler("session-reminders", { every: SCHEDULES.remindersMs }, { name: "session-reminders" });
   log.log("worker started");
 
   const shutdown = async () => {

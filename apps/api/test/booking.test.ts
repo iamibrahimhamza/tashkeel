@@ -3,7 +3,9 @@ import type { PrismaClient } from "@tashkeel/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaService } from "../src/common/prisma.service";
 import { InlineQueue, JOB_QUEUE } from "../src/common/queue";
+import { renderEmail } from "../src/common/email";
 import { HoldsService } from "../src/modules/booking/holds.service";
+import { RemindersService } from "../src/modules/booking/reminders.service";
 import { startHarness, type Harness } from "./harness";
 
 let h: Harness;
@@ -186,5 +188,58 @@ describe("holds and checkout", () => {
     const freeSlot = (await slotStarts(EXPERT_TZ, day, day, freeServiceId)).at(-1)!;
     const res = await book(freeSlot, { sid: freeServiceId, email: "free@example.com" });
     expect(res.body).toMatchObject({ status: "CONFIRMED", checkoutUrl: null, holdExpiresAt: null });
+  });
+});
+
+describe("confirmation details", () => {
+  const link = "https://meet.google.com/abc-defg-hij";
+  let bookingId: string;
+  let startsAt: Date;
+
+  it("stores an https meeting link on the service and keeps it off the public page", async () => {
+    const insecure = await h.http().patch(`/v1/workspaces/${workspaceId}/services/${freeServiceId}`).set(auth(owner)).send({ meetingUrl: "http://meet.example.com/x" });
+    expect(insecure.status).toBe(422);
+    const ok = await h.http().patch(`/v1/workspaces/${workspaceId}/services/${freeServiceId}`).set(auth(owner)).send({ meetingUrl: link });
+    expect(ok.body.meetingUrl).toBe(link);
+    expect(JSON.stringify((await h.http().get(`/v1/public/homes/booker/services/${freeServiceId}`)).body)).not.toContain(link);
+  });
+
+  it("copies the link onto the confirmed booking and attaches a calendar invite", async () => {
+    const slot = (await slotStarts(EXPERT_TZ, day, day, freeServiceId))[0]!;
+    const res = await book(slot, { sid: freeServiceId, email: "invite@example.com" });
+    expect(res.body.status).toBe("CONFIRMED");
+    bookingId = res.body.bookingId;
+    const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+    expect(booking.meetingUrl).toBe(link);
+    startsAt = booking.startsAt;
+
+    const rows = await prisma.emailOutbox.findMany({ where: { dedupeKey: { in: [`booking:customer:${bookingId}`, `booking:expert:${bookingId}`] } } });
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      const mail = renderEmail(row);
+      expect(mail.text).toContain(link);
+      const ics = mail.attachments?.[0]?.content.replace(/\r\n /g, "") ?? "";
+      expect(ics).toContain(`UID:${bookingId}@tashkeel`);
+      expect(ics).toContain(`DTSTART:${startsAt.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")}`);
+      expect(ics).toContain(`URL:${link}`);
+    }
+  });
+
+  it("queues each reminder once, for the client and the expert", async () => {
+    const reminders = h.app.get(RemindersService);
+    const before = (hours: number) => new Date(startsAt.getTime() - hours * 3_600_000);
+    const queued = () => prisma.emailOutbox.count({ where: { template: "booking_reminder", dedupeKey: { contains: bookingId } } });
+    await reminders.queueDue(before(30));
+    expect(await queued()).toBe(0);
+    await reminders.queueDue(before(23));
+    expect(await queued()).toBe(2);
+    await reminders.queueDue(before(22));
+    expect(await queued()).toBe(2); // already queued, not repeated
+    await reminders.queueDue(before(0.5));
+    expect(await queued()).toBe(4);
+    const rows = await prisma.emailOutbox.findMany({ where: { template: "booking_reminder", dedupeKey: { contains: bookingId } }, orderBy: { dedupeKey: "asc" } });
+    expect(rows.map((r) => r.dedupeKey)).toEqual([`reminder:1h:customer:${bookingId}`, `reminder:1h:expert:${bookingId}`, `reminder:24h:customer:${bookingId}`, `reminder:24h:expert:${bookingId}`]);
+    expect(renderEmail(rows[0]!).subject).toContain("بعد ساعة");
+    expect(renderEmail(rows[0]!).text).toContain(link);
   });
 });

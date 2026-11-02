@@ -16,6 +16,7 @@ const T = {
     active: "متاحة للحجز", inactive: "غير متاحة", min: "دقيقة", free: "مجاناً", none: "لا خدمات بعد",
     noneBody: "أضف خدمتك الاستشارية الأولى: مدتها وسعرها ومتى يمكن حجزها. تظهر تلقائياً في صفحتك.",
     VIDEO: "مكالمة فيديو", IN_PERSON: "حضورياً", PHONE: "مكالمة هاتفية", bookingLink: "رابط الحجز",
+    meetingUrl: "رابط الاجتماع", meetingHint: "رابطك الثابت في Google Meet أو Zoom. يصل إلى العميل مع تأكيد الحجز وملف التقويم، ولا يظهر في صفحتك العامة.",
   },
   en: {
     add: "Add service", edit: "Edit", save: "Save service", cancel: "Cancel", saved: "Saved",
@@ -24,13 +25,14 @@ const T = {
     active: "Bookable", inactive: "Paused", min: "min", free: "Free", none: "No services yet",
     noneBody: "Add your first consultation: its length, price and how far ahead it can be booked. It appears on your page automatically.",
     VIDEO: "Video call", IN_PERSON: "In person", PHONE: "Phone call", bookingLink: "Booking link",
+    meetingUrl: "Meeting link", meetingHint: "Your standing Google Meet or Zoom link. The client receives it with the booking confirmation and calendar invite; it never appears on your public page.",
   },
 };
 
 const DURATIONS = [15, 20, 30, 45, 60, 75, 90, 120, 180, 240];
 const BUFFERS = [0, 5, 10, 15, 30, 45, 60];
 
-const empty: ServiceForm = { title: "", description: "", durationMin: 60, bufferBeforeMin: 0, bufferAfterMin: 15, price: "", locationType: "VIDEO", minNoticeHours: 12, maxAdvanceDays: 60, isActive: true };
+const empty: ServiceForm = { title: "", description: "", durationMin: 60, bufferBeforeMin: 0, bufferAfterMin: 15, price: "", locationType: "VIDEO", meetingUrl: "", minNoticeHours: 12, maxAdvanceDays: 60, isActive: true };
 
 function fromDto(s: ServiceDto): ServiceForm {
   return {
@@ -41,6 +43,7 @@ function fromDto(s: ServiceDto): ServiceForm {
     bufferAfterMin: s.bufferAfterMin,
     price: (Number(s.priceMinor) / 100).toString(),
     locationType: s.locationType,
+    meetingUrl: s.meetingUrl ?? "",
     minNoticeHours: s.minNoticeMin / 60,
     maxAdvanceDays: s.maxAdvanceDays,
     isActive: s.isActive,
@@ -139,6 +142,13 @@ function ServiceFormCard({ initial, serviceId, workspaceId, slug, locale, onDone
           </select>
         </label>
       </div>
+      {f.locationType === "VIDEO" && (
+        <label className="grid gap-1.5 text-sm">
+          <span className="font-heading text-xs text-muted">{t.meetingUrl}</span>
+          <input type="url" pattern="https://.+" maxLength={500} dir="ltr" placeholder="https://meet.google.com/…" value={f.meetingUrl} onChange={(e) => set("meetingUrl", e.target.value)} className={input} />
+          <span className="text-xs leading-6 text-muted">{t.meetingHint}</span>
+        </label>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1.5 text-sm">
           <span className="font-heading text-xs text-muted">{t.minNotice}</span>

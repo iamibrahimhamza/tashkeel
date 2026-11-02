@@ -2,6 +2,7 @@ import { Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShut
 import { EmailRelay } from "../common/email";
 import { env } from "../config/env";
 import { HoldsService } from "./booking/holds.service";
+import { RemindersService } from "./booking/reminders.service";
 import { FulfillmentService } from "./pay/fulfillment.service";
 
 /**
@@ -9,12 +10,14 @@ import { FulfillmentService } from "./pay/fulfillment.service";
  *  - release-funds: hourly-ish, moves matured earnings to AVAILABLE
  *  - email-relay: drains the transactional outbox
  *  - expire-holds: releases booking slots whose 10-minute payment hold lapsed
+ *  - session-reminders: queues the 24h and 1h reminder emails
  * With QUEUE_DRIVER=bullmq these run as repeatable jobs in the worker instead (src/worker.ts).
  */
 export const SCHEDULES = {
   releaseFundsMs: 15 * 60_000,
   emailRelayMs: 30_000,
   expireHoldsMs: 60_000,
+  remindersMs: 5 * 60_000,
 };
 
 export async function runReleaseFunds(f: FulfillmentService, log: Logger) {
@@ -31,6 +34,7 @@ export class InlineScheduler implements OnApplicationBootstrap, OnApplicationShu
     private readonly fulfillment: FulfillmentService,
     private readonly email: EmailRelay,
     private readonly holds: HoldsService,
+    private readonly reminders: RemindersService,
   ) {}
 
   onApplicationBootstrap() {
@@ -41,6 +45,7 @@ export class InlineScheduler implements OnApplicationBootstrap, OnApplicationShu
     every(SCHEDULES.releaseFundsMs, "release-funds", () => runReleaseFunds(this.fulfillment, this.log));
     every(SCHEDULES.emailRelayMs, "email-relay", () => this.email.relayBatch());
     every(SCHEDULES.expireHoldsMs, "expire-holds", () => this.holds.expireDue());
+    every(SCHEDULES.remindersMs, "session-reminders", () => this.reminders.queueDue());
   }
 
   onApplicationShutdown() {

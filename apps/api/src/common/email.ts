@@ -1,10 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { formatMoney, intlLocale } from "@tashkeel/core";
+import { buildIcs, formatMoney, intlLocale } from "@tashkeel/core";
 import type { EmailOutbox } from "@tashkeel/db";
 import { env } from "../config/env";
 import { PrismaService } from "./prisma.service";
 
-type Rendered = { subject: string; text: string };
+type Attachment = { filename: string; content: string; contentType: string };
+type Rendered = { subject: string; text: string; attachments?: Attachment[] };
 type Data = Record<string, unknown>;
 
 /** Session time in the recipient's own timezone, Western digits. */
@@ -12,6 +13,15 @@ const when = (d: Data, locale: "ar" | "en") =>
   new Intl.DateTimeFormat(intlLocale(locale), { dateStyle: "full", timeStyle: "short", timeZone: String(d.timezone) }).format(new Date(String(d.startsAt)));
 
 const money = (d: Data, locale: "ar" | "en") => formatMoney(BigInt(String(d.amountMinor ?? "0")), String(d.currency ?? "USD"), { locale });
+
+const link = (d: Data, locale: "ar" | "en") => (d.meetingUrl ? (locale === "ar" ? `\nرابط الجلسة: ${d.meetingUrl}` : `\nSession link: ${d.meetingUrl}`) : "");
+
+/** Session emails carry a calendar invite. Rows queued before invites existed have no bookingId and go without. */
+function withInvite(d: Data, r: Rendered, summary: string): Rendered {
+  if (!d.bookingId || !d.endsAt) return r;
+  const ics = buildIcs({ uid: String(d.bookingId), startsAt: new Date(String(d.startsAt)), endsAt: new Date(String(d.endsAt)), summary, url: d.meetingUrl ? String(d.meetingUrl) : null, description: r.text });
+  return { ...r, attachments: [{ filename: "session.ics", content: ics, contentType: "text/calendar; charset=utf-8; method=PUBLISH" }] };
+}
 
 /** Plain-text transactional templates. Arabic first; English for users who chose it. */
 const TEMPLATES: Record<string, (d: Data, l: "ar" | "en") => Rendered> = {
@@ -24,13 +34,27 @@ const TEMPLATES: Record<string, (d: Data, l: "ar" | "en") => Rendered> = {
       ? { subject: `عملية بيع جديدة: ${money(d, l)}`, text: `مبروك! تمت عملية بيع جديدة بقيمة ${money(d, l)}.\n${(d.items as string[]).join("\n")}` }
       : { subject: `New sale: ${money(d, l)}`, text: `Congratulations! New sale of ${money(d, l)}.\n${(d.items as string[]).join("\n")}` },
   booking_confirmed: (d, l) =>
-    l === "ar"
-      ? { subject: `تم تأكيد موعدك: ${d.title}`, text: `تم تأكيد جلستك مع ${d.expert}.\nالموعد: ${when(d, l)} (${d.timezone})` }
-      : { subject: `Your session is confirmed: ${d.title}`, text: `Your session with ${d.expert} is confirmed.\nWhen: ${when(d, l)} (${d.timezone})` },
+    withInvite(
+      d,
+      l === "ar"
+        ? { subject: `تم تأكيد موعدك: ${d.title}`, text: `تم تأكيد جلستك مع ${d.expert}.\nالموعد: ${when(d, l)} (${d.timezone})${link(d, l)}` }
+        : { subject: `Your session is confirmed: ${d.title}`, text: `Your session with ${d.expert} is confirmed.\nWhen: ${when(d, l)} (${d.timezone})${link(d, l)}` },
+      `${d.title} — ${d.expert}`,
+    ),
   new_booking: (d, l) =>
-    l === "ar"
-      ? { subject: `حجز جديد: ${d.title}`, text: `حجز ${d.client} جلسة "${d.title}".\nالموعد: ${when(d, l)} (${d.timezone})` }
-      : { subject: `New booking: ${d.title}`, text: `${d.client} booked "${d.title}".\nWhen: ${when(d, l)} (${d.timezone})` },
+    withInvite(
+      d,
+      l === "ar"
+        ? { subject: `حجز جديد: ${d.title}`, text: `حجز ${d.client} جلسة "${d.title}".\nالموعد: ${when(d, l)} (${d.timezone})${link(d, l)}` }
+        : { subject: `New booking: ${d.title}`, text: `${d.client} booked "${d.title}".\nWhen: ${when(d, l)} (${d.timezone})${link(d, l)}` },
+      `${d.title} — ${d.client}`,
+    ),
+  booking_reminder: (d, l) => {
+    const soon = d.kind === "1h";
+    return l === "ar"
+      ? { subject: `${soon ? "جلستك بعد ساعة" : "تذكير بجلسة الغد"}: ${d.title}`, text: `${soon ? "تبدأ جلستك بعد ساعة تقريباً" : "نذكّرك بجلستك القادمة"} مع ${d.with}.\nالموعد: ${when(d, l)} (${d.timezone})${link(d, l)}` }
+      : { subject: `${soon ? "Your session starts in an hour" : "Your session is tomorrow"}: ${d.title}`, text: `${soon ? "Your session starts in about an hour" : "A reminder of your upcoming session"} with ${d.with}.\nWhen: ${when(d, l)} (${d.timezone})${link(d, l)}` };
+  },
   payout_paid: (d, l) =>
     l === "ar"
       ? { subject: "تم تحويل أرباحك", text: `حوّلنا ${money(d, l)} إلى حسابك.\nمرجع التحويل: ${d.providerRef}` }
@@ -54,7 +78,7 @@ export function renderEmail(row: Pick<EmailOutbox, "template" | "locale" | "data
 @Injectable()
 export class EmailRelay {
   private readonly log = new Logger("EmailRelay");
-  private transport?: { sendMail(m: { from: string; to: string; subject: string; text: string }): Promise<unknown> };
+  private transport?: { sendMail(m: { from: string; to: string; subject: string; text: string; attachments?: Attachment[] }): Promise<unknown> };
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -92,6 +116,6 @@ export class EmailRelay {
       const nodemailer = await import("nodemailer");
       this.transport = nodemailer.createTransport(url);
     }
-    await this.transport.sendMail({ from: env().EMAIL_FROM ?? `Tashkeel <no-reply@${env().NEXT_PUBLIC_ROOT_DOMAIN}>`, to, subject: mail.subject, text: mail.text });
+    await this.transport.sendMail({ from: env().EMAIL_FROM ?? `Tashkeel <no-reply@${env().NEXT_PUBLIC_ROOT_DOMAIN}>`, to, subject: mail.subject, text: mail.text, attachments: mail.attachments });
   }
 }

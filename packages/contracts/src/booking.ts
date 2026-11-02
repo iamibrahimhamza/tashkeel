@@ -14,6 +14,15 @@ export const CreateServiceInput = z.object({
   priceMinor: MoneyMinor,
   currency: Currency.default("USD"),
   locationType: LocationType.default("VIDEO"),
+  /** The expert's standing link (Meet, Zoom…), sent to the client only once the booking is confirmed. */
+  meetingUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .url()
+    .refine((u) => u.startsWith("https://"), "meeting link must use https")
+    .nullable()
+    .optional(),
   minNoticeMin: z.number().int().min(0).max(60 * 24 * 14).default(720),
   maxAdvanceDays: z.number().int().min(1).max(365).default(60),
   isActive: z.boolean().default(true),
@@ -31,6 +40,7 @@ export const ServiceDto = z.object({
   priceMinor: z.string(),
   currency: z.string(),
   locationType: LocationType,
+  meetingUrl: z.string().nullable(),
   minNoticeMin: z.number(),
   maxAdvanceDays: z.number(),
   isActive: z.boolean(),
