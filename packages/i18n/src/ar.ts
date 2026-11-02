@@ -156,6 +156,12 @@ export const ar = {
     payouts: { title: "الأرباح والسحب", request: "طلب سحب", amount: "المبلغ", to: "إلى", submit: "إرسال الطلب", profiles: "وسائل السحب", addProfile: "إضافة وسيلة سحب", label: "اسم مختصر", saveProfile: "حفظ الوسيلة", history: "سجل السحب", cancel: "إلغاء", minimum: "الحد الأدنى للسحب 20$" },
     billing: { title: "الخطة والاشتراك", current: "خطتك الحالية", fee: "رسوم المعاملة", upgrade: "الترقية", currentBadge: "خطتك" },
     admin: { title: "لوحة الإدارة", payouts: "طلبات السحب", waitlist: "قائمة الانتظار", settings: "إعدادات الدفع", approve: "اعتماد (تم التحقق من الامتثال)", markPaid: "تأكيد التحويل", fail: "تعذّر التحويل", reason: "السبب", reference: "مرجع التحويل", destination: "بيانات الاستلام", history: "سجل الحالة" },
+    client: {
+      back: "كل العملاء", since: "عميل منذ", sessions: "الجلسات", purchases: "المشتريات", activity: "سجل النشاط",
+      notes: "ملاحظات خاصة", notesHint: "لا يراها العميل. دوّن ما تحتاج تذكّره قبل جلستك القادمة معه.", notePlaceholder: "ما الذي تريد تذكّره عن هذا العميل؟",
+      addNote: "حفظ الملاحظة", delete: "حذف", noSessions: "لم يحجز أي جلسة بعد.", noPurchases: "لا مشتريات بعد.", noActivity: "لا نشاط مسجّل بعد.", noNotes: "لا ملاحظات بعد.",
+      types: { ORDER_PAID: "أتمّ عملية دفع", REFUNDED: "استُرد له مبلغ", DISPUTE_LOST: "اعترض على دفعة" },
+    },
   },
   sandbox: {
     banner: "وضع تجريبي — لن يُخصم أي مبلغ حقيقي",

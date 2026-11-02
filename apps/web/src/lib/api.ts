@@ -66,7 +66,7 @@ export async function createCheckout(input: CreateCheckoutInput, idempotencyKey:
 }
 
 /** Authenticated call to the API on behalf of the logged-in user. Throws ApiRequestError. */
-export async function api<T>(path: string, opts: { token: string; method?: "GET" | "POST" | "PATCH" | "PUT"; body?: unknown; idempotencyKey?: string }): Promise<T> {
+export async function api<T>(path: string, opts: { token: string; method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE"; body?: unknown; idempotencyKey?: string }): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: opts.method ?? "GET",
     cache: "no-store",

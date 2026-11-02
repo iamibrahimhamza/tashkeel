@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { BookingStatus } from "./booking";
 import { PaginationQuery } from "./common";
+import { OrderStatus } from "./pay";
 
 export const ContactsQuery = PaginationQuery.extend({
   q: z.string().trim().max(120).optional(),
@@ -26,6 +28,23 @@ export const ActivityDto = z.object({
   at: z.string(),
   data: z.record(z.unknown()),
 });
+export type ActivityDto = z.infer<typeof ActivityDto>;
+
+/** Private to the expert's workspace; the client never sees notes. */
+export const CreateContactNoteInput = z.object({ body: z.string().trim().min(1).max(5000) });
+export type CreateContactNoteInput = z.infer<typeof CreateContactNoteInput>;
+
+export const ContactNoteDto = z.object({ id: z.string(), body: z.string(), author: z.string(), createdAt: z.string() });
+export type ContactNoteDto = z.infer<typeof ContactNoteDto>;
+
+export const ContactDetailDto = z.object({
+  contact: ContactDto,
+  bookings: z.array(z.object({ id: z.string(), serviceTitle: z.string(), startsAt: z.string(), status: BookingStatus })),
+  orders: z.array(z.object({ id: z.string(), status: OrderStatus, subtotalMinor: z.string(), currency: z.string(), items: z.array(z.string()), paidAt: z.string().nullable() })),
+  activity: z.array(ActivityDto),
+  notes: z.array(ContactNoteDto),
+});
+export type ContactDetailDto = z.infer<typeof ContactDetailDto>;
 
 export const AnalyticsRange = z.object({ range: z.enum(["7d", "30d", "90d", "365d"]).default("30d") });
 

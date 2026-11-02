@@ -53,6 +53,7 @@ model User {
   pageVersions   PageVersion[]
   posts          Post[]            @relation("PostAuthor")
   auditLogs      AuditLog[]
+  contactNotes   ContactNote[]    @relation("ContactNoteAuthor")
 }
 
 model Account {
@@ -792,6 +793,9 @@ model ContactNote {
   body      String
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  author    User     @relation("ContactNoteAuthor", fields: [authorId], references: [id])
+
+  @@index([contactId, createdAt])
 }
 
 model ActivityEvent {
