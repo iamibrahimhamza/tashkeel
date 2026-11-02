@@ -4,6 +4,7 @@ import type { Prisma, Tx } from "@tashkeel/db";
 import { randomUUID } from "node:crypto";
 import { env } from "../../config/env";
 import { PrismaService } from "../../common/prisma.service";
+import { issueDownloadAccess } from "../products/downloads";
 import { LedgerService } from "./ledger.service";
 
 /**
@@ -52,13 +53,15 @@ export class FulfillmentService {
 
       const items = await tx.orderItem.findMany({ where: { orderId: order.id }, include: { booking: { include: { service: { select: { meetingUrl: true } } } } } });
       const bookingsConfirmed: Array<{ id: string; startsAt: Date; endsAt: Date; customerTz: string; meetingUrl: string | null }> = [];
+      const entitlements: Array<{ id: string; title: string }> = [];
       for (const item of items) {
         if (item.productId) {
-          await tx.entitlement.upsert({
+          const e = await tx.entitlement.upsert({
             where: { orderItemId: item.id },
             update: {},
             create: { userId: order.customerId, productId: item.productId, orderItemId: item.id },
           });
+          entitlements.push({ id: e.id, title: item.title });
         }
         if (item.booking) {
           if (bookingMachine.can(item.booking.status, "CONFIRMED")) {
@@ -80,6 +83,13 @@ export class FulfillmentService {
         create: { workspaceId: order.workspaceId, email: customer.email, name: customer.name, userId: order.customerId, source: "purchase", lifetimeValueMinor: order.subtotalMinor },
       });
       await this.activity(tx, order.workspaceId, contact.id, "ORDER_PAID", order.id, { amountMinor: order.subtotalMinor.toString(), currency: order.currency, items: items.map((i) => i.title) });
+
+      if (entitlements.length) {
+        const expert = await tx.workspace.findUniqueOrThrow({ where: { id: order.workspaceId }, select: { name: true } });
+        for (const e of entitlements) {
+          await issueDownloadAccess(tx, { entitlementId: e.id, to: customer.email, locale: customer.locale, title: e.title, expert: expert.name, now: paidAt });
+        }
+      }
 
       const owner = await tx.membership.findFirst({ where: { workspaceId: order.workspaceId, role: "OWNER" }, include: { user: { select: { email: true, locale: true } } } });
       const emailData = { orderId: order.id, amountMinor: order.subtotalMinor.toString(), currency: order.currency, items: items.map((i) => i.title) };

@@ -8,7 +8,8 @@ export const ProductStatus = z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 const ProductSlug = z.string().min(1).max(80).regex(/^[a-z0-9؀-ۿ](?:[a-z0-9؀-ۿ-]*[a-z0-9؀-ۿ])?$/);
 
 export const CreateProductInput = z.object({
-  type: ProductType,
+  /** Downloadable products only for now; courses arrive with the LMS. */
+  type: ProductType.extract(["FILE"]).default("FILE"),
   slug: ProductSlug,
   title: z.string().trim().min(2).max(160),
   description: z.string().trim().max(10000).optional(),
@@ -32,8 +33,9 @@ export const ProductDto = z.object({
 });
 export type ProductDto = z.infer<typeof ProductDto>;
 
-const MAX_FILE_BYTES = 2 * 1024 ** 3; // 2 GiB
-const ALLOWED_MIME = [
+export const MAX_FILE_BYTES = 200 * 1024 ** 2; // 200 MB
+export const MAX_COVER_BYTES = 5 * 1024 ** 2;
+export const ALLOWED_FILE_MIME = [
   "application/pdf",
   "application/epub+zip",
   "application/zip",
@@ -42,25 +44,52 @@ const ALLOWED_MIME = [
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "image/png",
   "image/jpeg",
-  "audio/mpeg",
-  "video/mp4",
 ] as const;
+export const ALLOWED_COVER_MIME = ["image/png", "image/jpeg", "image/webp"] as const;
 
 export const RequestUploadInput = z.object({
   fileName: z.string().trim().min(1).max(200),
-  mime: z.enum(ALLOWED_MIME),
+  mime: z.enum(ALLOWED_FILE_MIME),
   sizeBytes: z.number().int().positive().max(MAX_FILE_BYTES),
 });
 export type RequestUploadInput = z.infer<typeof RequestUploadInput>;
 
+export const RequestCoverUploadInput = z.object({
+  mime: z.enum(ALLOWED_COVER_MIME),
+  sizeBytes: z.number().int().positive().max(MAX_COVER_BYTES),
+});
+export type RequestCoverUploadInput = z.infer<typeof RequestCoverUploadInput>;
+
+/** The browser PUTs the file to uploadUrl with this exact Content-Type, then calls complete. */
 export const UploadTicket = z.object({
   fileId: z.string(),
   uploadUrl: z.string(),
+  mime: z.string(),
   expiresAt: z.string(),
 });
+export type UploadTicket = z.infer<typeof UploadTicket>;
+
+export const ProductFileDto = z.object({ id: z.string(), fileName: z.string(), sizeBytes: z.string(), mime: z.string(), uploaded: z.boolean() });
+export type ProductFileDto = z.infer<typeof ProductFileDto>;
+
+export const ProductDetailDto = ProductDto.extend({ files: z.array(ProductFileDto) });
+export type ProductDetailDto = z.infer<typeof ProductDetailDto>;
 
 export const DownloadLink = z.object({ url: z.string(), expiresAt: z.string() });
 export type DownloadLink = z.infer<typeof DownloadLink>;
+
+/** What the buyer's emailed link opens: /d/[token]. */
+export const DownloadPage = z.object({
+  product: z.object({ title: z.string() }),
+  expert: z.object({ name: z.string(), slug: z.string() }),
+  files: z.array(z.object({ id: z.string(), fileName: z.string(), sizeBytes: z.string(), mime: z.string() })),
+  expiresAt: z.string(),
+  downloadsLeft: z.number(),
+});
+export type DownloadPage = z.infer<typeof DownloadPage>;
+
+export const ResendDownloadsInput = z.object({ email: z.string().trim().toLowerCase().email().max(254) });
+export type ResendDownloadsInput = z.infer<typeof ResendDownloadsInput>;
 
 // ── LMS ──────────────────────────────────────────────
 

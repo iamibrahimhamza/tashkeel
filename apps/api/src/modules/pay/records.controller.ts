@@ -4,6 +4,7 @@ import type { Prisma } from "@tashkeel/db";
 import { CurrentWorkspace, RequirePermission, type WorkspaceContext } from "../../common/auth";
 import { PrismaService } from "../../common/prisma.service";
 import { ValidQuery } from "../../common/zod";
+import { productDto } from "../products/products.controller";
 
 /**
  * Read-only lists behind the expert dashboard: clients, bookings, products. Creation flows for
@@ -68,18 +69,6 @@ export class RecordsController {
   @Get("products")
   async products(@CurrentWorkspace() ws: WorkspaceContext): Promise<{ data: ProductDto[] }> {
     const rows = await this.prisma.db.product.findMany({ where: { workspaceId: ws.id, status: { not: "ARCHIVED" } }, orderBy: { createdAt: "desc" } });
-    return {
-      data: rows.map((p) => ({
-        id: p.id,
-        type: p.type,
-        slug: p.slug,
-        title: p.title,
-        description: p.description,
-        coverUrl: null,
-        priceMinor: p.priceMinor.toString(),
-        currency: p.currency,
-        status: p.status,
-      })),
-    };
+    return { data: rows.map(productDto) };
   }
 }
