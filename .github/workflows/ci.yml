@@ -29,6 +29,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # A fresh install has no generated Prisma client; typecheck needs it before any build runs.
+      # The schema reads DATABASE_URL, but generating the client never connects to it.
+      - run: pnpm db:generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
       # Tests run against in-process Postgres (PGlite), so no service containers are needed.
       - run: pnpm typecheck
       - run: pnpm test
