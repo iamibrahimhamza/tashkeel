@@ -71,7 +71,7 @@ export class SitesController {
     if (!ws?.site) throw Errors.notFound("Product");
     const p = await this.prisma.db.product.findFirst({
       where: { workspaceId: ws.id, slug: decodeURIComponent(productSlug), status: "PUBLISHED" },
-      include: { files: { select: { fileName: true, sizeBytes: true, mime: true } }, course: { include: { modules: { orderBy: { position: "asc" }, include: { lessons: { orderBy: { position: "asc" }, select: { title: true, durationSec: true, isPreview: true } } } } } } },
+      include: { files: { where: { uploadedAt: { not: null } }, orderBy: { createdAt: "asc" }, select: { fileName: true, sizeBytes: true, mime: true } }, course: { include: { modules: { orderBy: { position: "asc" }, include: { lessons: { orderBy: { position: "asc" }, select: { title: true, durationSec: true, isPreview: true } } } } } } },
     });
     if (!p) throw Errors.notFound("Product");
     return {

@@ -1,4 +1,4 @@
-import { CheckoutOrderStatus, CheckoutSession, PublicHome, PublicProductPage, SandboxSession, type ApiError, type CreateCheckoutInput } from "@tashkeel/contracts";
+import { CheckoutOrderStatus, CheckoutSession, DownloadPage, PublicHome, PublicProductPage, SandboxSession, type ApiError, type CreateCheckoutInput } from "@tashkeel/contracts";
 import "server-only";
 
 const API_URL = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -101,6 +101,17 @@ export async function fetchSandboxSession(sessionId: string): Promise<SandboxSes
     return SandboxSession.parse(await get(`/v1/sandbox/sessions/${encodeURIComponent(sessionId)}`, { cache: "no-store" }));
   } catch (e) {
     if (e instanceof ApiRequestError && e.status === 404) return null;
+    throw e;
+  }
+}
+
+/** The buyer's download page, or why it can't be shown (expired, used up, unknown). */
+export async function fetchDownloadPage(token: string): Promise<{ page: DownloadPage } | { problem: "expired" | "exhausted" | "missing" }> {
+  try {
+    return { page: DownloadPage.parse(await get(`/v1/public/downloads/${encodeURIComponent(token)}`, { cache: "no-store" })) };
+  } catch (e) {
+    if (e instanceof ApiRequestError && e.status === 410) return { problem: e.body?.error.code === "DOWNLOAD_LIMIT_REACHED" ? "exhausted" : "expired" };
+    if (e instanceof ApiRequestError && e.status === 404) return { problem: "missing" };
     throw e;
   }
 }

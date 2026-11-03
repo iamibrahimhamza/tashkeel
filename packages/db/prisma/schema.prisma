@@ -344,6 +344,7 @@ model ProductFile {
   mime       String
   sha256     String?
   scanStatus String          @default("PENDING") // PENDING | CLEAN | INFECTED
+  uploadedAt DateTime?       @db.Timestamptz(3) // set once the stored object is verified; only uploaded files are sold or served
   createdAt  DateTime        @default(now()) @db.Timestamptz(3)
   product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   grants     DownloadGrant[]
@@ -398,6 +399,7 @@ model Entitlement {
   product     Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItem   OrderItem?        @relation(fields: [orderItemId], references: [id])
   grants      DownloadGrant[]
+  accesses    DownloadAccess[]
 
   @@index([userId, productId])
 }
@@ -415,15 +417,33 @@ model LessonProgress {
   @@unique([userId, lessonId])
 }
 
+/// The buyer's emailed download link. Only the SHA-256 of the token is stored.
+model DownloadAccess {
+  id            String          @id @default(cuid())
+  entitlementId String
+  tokenHash     String          @unique
+  expiresAt     DateTime        @db.Timestamptz(3)
+  maxDownloads  Int
+  downloadsUsed Int             @default(0)
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+  entitlement   Entitlement     @relation(fields: [entitlementId], references: [id], onDelete: Cascade)
+  grants        DownloadGrant[]
+
+  @@index([entitlementId])
+}
+
+/// One issued short-lived file URL: the download log.
 model DownloadGrant {
-  id            String      @id @default(cuid())
+  id            String          @id @default(cuid())
   entitlementId String
   fileId        String
-  expiresAt     DateTime    @db.Timestamptz(3)
+  accessId      String?
+  expiresAt     DateTime        @db.Timestamptz(3)
   ip            String?
-  createdAt     DateTime    @default(now()) @db.Timestamptz(3)
-  entitlement   Entitlement @relation(fields: [entitlementId], references: [id], onDelete: Cascade)
-  file          ProductFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+  entitlement   Entitlement     @relation(fields: [entitlementId], references: [id], onDelete: Cascade)
+  file          ProductFile     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  access        DownloadAccess? @relation(fields: [accessId], references: [id], onDelete: SetNull)
 
   @@index([entitlementId, createdAt])
 }

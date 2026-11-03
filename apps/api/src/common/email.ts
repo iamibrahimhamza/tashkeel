@@ -55,6 +55,12 @@ const TEMPLATES: Record<string, (d: Data, l: "ar" | "en") => Rendered> = {
       ? { subject: `${soon ? "جلستك بعد ساعة" : "تذكير بجلسة الغد"}: ${d.title}`, text: `${soon ? "تبدأ جلستك بعد ساعة تقريباً" : "نذكّرك بجلستك القادمة"} مع ${d.with}.\nالموعد: ${when(d, l)} (${d.timezone})${link(d, l)}` }
       : { subject: `${soon ? "Your session starts in an hour" : "Your session is tomorrow"}: ${d.title}`, text: `${soon ? "Your session starts in about an hour" : "A reminder of your upcoming session"} with ${d.with}.\nWhen: ${when(d, l)} (${d.timezone})${link(d, l)}` };
   },
+  product_ready: (d, l) => {
+    const until = new Intl.DateTimeFormat(intlLocale(l), { dateStyle: "long" }).format(new Date(String(d.expiresAt)));
+    return l === "ar"
+      ? { subject: `منتجك جاهز للتنزيل: ${d.title}`, text: `شكراً لشرائك "${d.title}" من ${d.expert}.\n\nرابط التنزيل الخاص بك:\n${d.link}\n\nيعمل الرابط حتى ${until}، ويتيح ${d.maxDownloads} مرات تنزيل. لا تشاركه مع أحد.\nإن انتهت صلاحيته يمكنك طلب رابط جديد من الصفحة نفسها ببريدك الإلكتروني.` }
+      : { subject: `Your download is ready: ${d.title}`, text: `Thank you for buying "${d.title}" from ${d.expert}.\n\nYour personal download link:\n${d.link}\n\nIt works until ${until} for ${d.maxDownloads} downloads. Please don't share it.\nIf it expires, you can request a new one from the same page with your email.` };
+  },
   payout_paid: (d, l) =>
     l === "ar"
       ? { subject: "تم تحويل أرباحك", text: `حوّلنا ${money(d, l)} إلى حسابك.\nمرجع التحويل: ${d.providerRef}` }

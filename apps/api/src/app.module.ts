@@ -10,8 +10,10 @@ import { BookingModule } from "./modules/booking/booking.module";
 import { CrmController } from "./modules/crm/crm.controller";
 import { HealthController } from "./modules/health.controller";
 import { PayModule } from "./modules/pay/pay.module";
+import { ProductsModule } from "./modules/products/products.module";
 import { InlineScheduler } from "./modules/scheduler.service";
 import { SitesController } from "./modules/sites/sites.controller";
+import { StorageModule } from "./modules/storage/storage.module";
 import { WaitlistController } from "./modules/waitlist/waitlist.controller";
 import { WorkspacesController } from "./modules/workspaces/workspaces.controller";
 
@@ -20,8 +22,10 @@ import { WorkspacesController } from "./modules/workspaces/workspaces.controller
     // Global default: 100 requests/min per client. Sensitive routes tighten this with @Throttle.
     // Multi-instance deployments plug a Redis storage in here (@nest-lab/throttler-storage-redis).
     ThrottlerModule.forRoot({ throttlers: [{ name: "default", ttl: 60_000, limit: 100 }] }),
+    StorageModule,
     PayModule,
     BookingModule,
+    ProductsModule,
   ],
   controllers: [HealthController, AuthController, WorkspacesController, SitesController, WaitlistController, CrmController],
   providers: [

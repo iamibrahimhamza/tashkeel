@@ -6,6 +6,7 @@ import type { INestApplication } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { randomBytes } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const MIGRATIONS = join(__dirname, "../../../packages/db/prisma/migrations");
@@ -55,6 +56,9 @@ export async function startHarness(port: number, overrides: ProviderOverride[] =
     PAYOUT_ENCRYPTION_KEY: TEST_SECRETS.payoutKey,
     QUEUE_DRIVER: "inline",
     FUNDS_HOLD_DAYS: "7",
+    // One directory per test process: env() is cached process-wide and test files share a fork.
+    STORAGE_DRIVER: "local",
+    LOCAL_STORAGE_DIR: join(tmpdir(), `tashkeel-test-storage-${process.pid}`),
   });
   // The Prisma client is a process-wide singleton; drop any instance bound to an earlier test DB.
   delete (globalThis as { __tashkeelPrisma?: unknown }).__tashkeelPrisma;

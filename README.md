@@ -121,6 +121,13 @@ Set `QUEUE_DRIVER=bullmq` (with Redis) and run `pnpm --filter @tashkeel/api work
 - **Hold expiry** runs every minute (in-process, or in the BullMQ worker). It cancels lapsed holds, expires their orders and closes the gateway session, so a buyer can't pay for a slot that has been released.
 - Known limit: if a payment lands at the exact moment its hold is released, the order is paid but the booking stays cancelled. It is flagged on the client timeline (`BOOKING_PAID_AFTER_RELEASE`) for a manual refund or reschedule. Automatic refunds for this case are not built.
 
+## Digital Products (Module C, downloads)
+
+- **Expert side** `/dashboard/:id/products`: create a product (drafts only), upload files and a cover, then publish. A product can't be published without an uploaded file, and a published product keeps at least one.
+- **Uploads** go straight from the browser to storage through signed URLs bound to the file's type and declared size; the API then checks the stored size before the file counts as uploaded. 200 MB per file; PDF, EPUB, ZIP, Office and images. Files are **not virus-scanned yet**.
+- **Storage**: `STORAGE_DRIVER=local` keeps files under `LOCAL_STORAGE_DIR` behind HMAC-signed API URLs (development only). `STORAGE_DRIVER=s3` uses any S3-compatible store; production requires it (Cloudflare R2, with a CORS rule allowing `PUT` from `WEB_URL`).
+- **Delivery**: a paid order emails the buyer a private link (`/d/:token`, only its SHA-256 is stored). It works for 30 days and 5 downloads; each download returns a storage URL valid for 5 minutes, and downloads are spent atomically. Refunds revoke access. Buyers can request a fresh link by email; the answer never reveals whether the email bought anything.
+
 ## Tests
 
 ```bash
@@ -132,6 +139,7 @@ pnpm test        # every package
 - `apps/api`: boots the real Nest app on in-process Postgres and covers auth, 422 validation shape, 404 for other users' workspaces, Idempotency-Key replay/reuse/missing, and the draft→publish flow
 - `apps/api/test/booking.test.ts`: covers service and availability validation, timezone-correct slots, day-off overrides, 10-minute holds, double and concurrent booking races, idempotent holds, hold expiry freeing the slot, sandbox payment confirming the booking, free sessions, meeting links, calendar invites and reminders
 - `apps/api/test/isolation.test.ts`: discovers every `:workspaceId` route from the live router and asserts that non-members get 404 and anonymous callers 401, plus cross-workspace record access
+- `apps/api/test/products.test.ts`: the product editor, signed uploads (type, size, tampering, path traversal), covers, publishing rules, delivery emails, concurrent download budgets, resend cooldown, expiry and refunds
 - `apps/api/test/crm.test.ts`: the client record (bookings, purchases, activity) and private notes, including access from another workspace
 - `apps/api/test/sandbox.test.ts`: runs the real Sandbox adapter. Covers approve and decline, the event pipeline, simulated refunds, a plan upgrade, Super Admin settings (no secret values) and the list endpoints
 - `apps/api/test/pay.test.ts`: uses a fake Stripe client with real signature checks. Covers server-side pricing, idempotent checkout, forged and duplicate webhooks, partial and full refunds, lost disputes, funds release, encrypted payout profiles, concurrent payout requests that must not overdraw, the staff payout flow, signed rail callbacks, plan sync and the email outbox
@@ -150,7 +158,7 @@ pnpm test        # every package
 2. **Tashkeel Pay**: done. Gateway adapters (Sandbox and Stripe), ledger, checkout, webhooks, balances, payouts and the staff queue, plans, worker, dashboard and admin screens. Stripe Connect onboarding is not built yet.
 3. **Digital Home builder**: done. The block builder, versions and rollback, ISR plus on-demand revalidation, SEO, sitemap and robots. Custom domains are not built yet.
 4. **Consultations**: done. Services and availability editors, public booking with timezones, 10-minute holds into checkout, expiry, confirmation emails with calendar invites, standing meeting links and 24h/1h reminders. Generated Meet/Zoom links (OAuth per expert) are not built.
-5. **Assets & LMS**: presigned uploads, signed downloads, courses, Mux playback, progress.
+5. **Assets & LMS**: downloadable products are done (storage, editor, signed uploads, protected delivery). Courses, Mux playback, progress and virus scanning remain.
 6. **Editorial**: Tiptap CMS, scheduled publishing, OG images, RSS/sitemap, newsletter.
 7. **CRM & Analytics**: client record with bookings, purchases, activity and private notes is done. Contact unification, rollups and dashboards remain.
 8. **Hardening**: CI (typecheck, tests, build on GitHub Actions) is done. Redis-backed throttling, observability and deployment remain.
